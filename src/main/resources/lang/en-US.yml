@@ -9,8 +9,6 @@ desc:
   list: "List bans"
   link: "Show linked accounts"
 status: "§b[Anchor] ${0} accounts are banned; logins of ${1} accounts are recorded."
-word:
-  forever: "permanent"
 ban:
   forever: "permanent"
   until: "until ${0}"
@@ -31,7 +29,7 @@ link:
   direct: "§cDirectly linked (same address and same device)"
   possible: "§7Possibly linked (only the address or the device matches)"
 restart:
-  off: "§e[Restart] Scheduled restarts are off (restart.enabled in the config)."
+  "off": "§e[Restart] Scheduled restarts are off (restart.enabled in the config)."
   next: "§b[Restart] Next restart ${0}, in ${1} seconds."
   none: "§e[Restart] No restart is planned."
   set: "§a[Restart] Restart planned in ${0} seconds."
@@ -42,8 +40,8 @@ clean:
   done: "§b[Clean] Removed ${0} dropped items and projectiles, ${1} creatures, ${2} experience orbs."
 maintenance:
   kick: "§e${0}"
-  on: "§a[Maintenance] Maintenance mode is on; everyone but operators and the allowed names was sent away."
-  off: "§a[Maintenance] Maintenance mode is off."
+  "on": "§a[Maintenance] Maintenance mode is on; everyone but operators and the allowed names was sent away."
+  "off": "§a[Maintenance] Maintenance mode is off."
 help:
   title: "§6=== §f§l${0} help§r §6==="
   index: "§e/${0} help ${1} §7- §b${2} (${3})"

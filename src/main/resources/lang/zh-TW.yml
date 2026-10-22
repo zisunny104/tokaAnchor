@@ -9,8 +9,6 @@ desc:
   list: "封禁名單"
   link: "查看關聯帳號"
 status: "§b[Anchor] 目前封禁 ${0} 個帳號；已記錄 ${1} 個帳號的登入位址與裝置。"
-word:
-  forever: "永久"
 ban:
   forever: "永久"
   until: "至 ${0}"
@@ -31,7 +29,7 @@ link:
   direct: "§c直接相關（位址與裝置都相同）"
   possible: "§7可能相關（只有位址或裝置相同）"
 restart:
-  off: "§e[重啟] 排程重啟未啟用（config 的 restart.enabled）。"
+  "off": "§e[重啟] 排程重啟未啟用（config 的 restart.enabled）。"
   next: "§b[重啟] 下次重啟 ${0}，還有 ${1} 秒。"
   none: "§e[重啟] 目前沒有排定的重啟。"
   set: "§a[重啟] 已排定 ${0} 秒後重啟。"
@@ -42,8 +40,8 @@ clean:
   done: "§b[清理] 已清理 ${0} 個掉落物與投射物、${1} 隻生物、${2} 個經驗球。"
 maintenance:
   kick: "§e${0}"
-  on: "§a[維護] 維護模式已開啟，非 OP 與名單外的玩家已被請出。"
-  off: "§a[維護] 維護模式已關閉。"
+  "on": "§a[維護] 維護模式已開啟，非 OP 與名單外的玩家已被請出。"
+  "off": "§a[維護] 維護模式已關閉。"
 help:
   title: "§6=== §f§l${0} 說明§r §6==="
   index: "§e/${0} help ${1} §7- §b${2}（${3} 項）"

@@ -154,4 +154,17 @@ public class AnchorTest {
         assertEquals(1, RestartPlan.secondsLeft(now.plusMillis(1), now));
         assertEquals(0, RestartPlan.secondsLeft(now.minusMillis(5), now));
     }
+
+    private static void noBooleanKeys(Object node, String path) {
+        if (!(node instanceof Map<?, ?> map)) return;
+        for (var entry : map.entrySet()) {
+            assertTrue("YAML turned the key into a boolean under " + path + " (quote on/off/yes/no): " + entry.getKey(), entry.getKey() instanceof String);
+            noBooleanKeys(entry.getValue(), path + "." + entry.getKey());
+        }
+    }
+
+    @Test public void noKeyIsReadAsABoolean() throws Exception {
+        for (String file : new String[]{"zh-TW.yml", "en-US.yml"})
+            try (InputStream in = AnchorTest.class.getResourceAsStream("/lang/" + file)) { noBooleanKeys(new Yaml().load(in), file); }
+    }
 }
