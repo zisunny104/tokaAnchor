@@ -30,6 +30,20 @@ link:
   none: "§e[Linked accounts] Nothing recorded for ${0}, or no linked accounts."
   direct: "§cDirectly linked (same address and same device)"
   possible: "§7Possibly linked (only the address or the device matches)"
+restart:
+  off: "§e[Restart] Scheduled restarts are off (restart.enabled in the config)."
+  next: "§b[Restart] Next restart ${0}, in ${1} seconds."
+  none: "§e[Restart] No restart is planned."
+  set: "§a[Restart] Restart planned in ${0} seconds."
+  cancelled: "§a[Restart] Cancelled; back to the daily schedule."
+  countdown: "§e[Restart] The server restarts in ${0} seconds."
+  now: "§c[Restart] The server is restarting; reconnect in a moment."
+clean:
+  done: "§b[Clean] Removed ${0} dropped items and projectiles, ${1} creatures, ${2} experience orbs."
+maintenance:
+  kick: "§e${0}"
+  on: "§a[Maintenance] Maintenance mode is on; everyone but operators and the allowed names was sent away."
+  off: "§a[Maintenance] Maintenance mode is off."
 help:
   title: "§6=== §f§l${0} help§r §6==="
   index: "§e/${0} help ${1} §7- §b${2} (${3})"
@@ -38,6 +52,7 @@ help:
   unknown: "§eNo help section \"${0}\"; type /${1} help."
   sec:
     ban: "Bans and unbans"
+    upkeep: "Restart, clean-up and maintenance"
     link: "Linked accounts"
   b: "§e/b <player> <reason...> §7- §bBan for good, and ban linked accounts with the same address and device"
   bTimed: "§e/b <player> <length> <reason...> §7- §bBan for a time: 30m, 12h, 7d, 2w; perm is permanent"
@@ -45,3 +60,8 @@ help:
   blist: "§e/blist [page] §7- §bShow the ban list, newest first"
   blink: "§e/blink <player> §7- §bShow accounts sharing an address or a device with this one"
   linkRule: "§8Directly linked = same address and device, banned along automatically; one match only is shown, never acted on (dorms and families share networks)."
+  restart: "§e/anchor restart <seconds> §7- §bPlan a restart in that many seconds (1-86400), with a countdown"
+  restartStatus: "§e/anchor restart status §7- §bShow when the next restart is"
+  restartCancel: "§e/anchor restart cancel §7- §bCancel a manual restart and return to the daily schedule"
+  clean: "§e/anchor clean §7- §bRemove dropped items, experience orbs, projectiles and creatures without a name tag now"
+  maintenance: "§e/anchor maintenance <on|off> [message...] §7- §bSwitch maintenance mode; while on, only operators and the allowed names can log in"

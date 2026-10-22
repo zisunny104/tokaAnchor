@@ -6,6 +6,7 @@ import dev.toka.anchor.ban.BanService;
 import dev.toka.anchor.ban.Span;
 import dev.toka.anchor.link.LinkFinder;
 import dev.toka.anchor.link.Sightings;
+import dev.toka.anchor.upkeep.RestartPlan;
 import dev.toka.storage.Backend;
 import dev.toka.storage.DocumentStore;
 import dev.toka.storage.StoreConfig;
@@ -128,5 +129,29 @@ public class AnchorTest {
             assertEquals(0, book.addMissing(batch, NOW));
             assertEquals("grief", book.active("alex", NOW).get().reason());
         }
+    }
+
+    @Test public void theNextRestartIsTheEarliestTimeStillAhead() {
+        var zone = java.time.ZoneId.of("UTC");
+        var times = java.util.List.of(java.time.LocalTime.of(3, 15), java.time.LocalTime.of(15, 0));
+        var at = (java.util.function.Function<String, java.time.Instant>) text -> java.time.Instant.parse(text);
+        assertEquals(at.apply("2026-10-23T03:15:00Z"), RestartPlan.next(times, zone, at.apply("2026-10-23T02:00:00Z")).get());
+        assertEquals(at.apply("2026-10-23T15:00:00Z"), RestartPlan.next(times, zone, at.apply("2026-10-23T03:15:00Z")).get());
+        assertEquals(at.apply("2026-10-24T03:15:00Z"), RestartPlan.next(times, zone, at.apply("2026-10-23T16:00:00Z")).get());
+        assertTrue(RestartPlan.next(java.util.List.of(), zone, java.time.Instant.now()).isEmpty());
+    }
+
+    @Test public void badRestartTimesAreReportedNotGuessed() {
+        var rejected = new java.util.ArrayList<String>();
+        var times = RestartPlan.parse(java.util.List.of("03:15", "25:99", "noon"), rejected);
+        assertEquals(1, times.size());
+        assertEquals(java.util.List.of("25:99", "noon"), rejected);
+    }
+
+    @Test public void theCountdownRoundsUpAndReachesZero() {
+        var now = java.time.Instant.parse("2026-10-23T00:00:00Z");
+        assertEquals(10, RestartPlan.secondsLeft(now.plusMillis(9_100), now));
+        assertEquals(1, RestartPlan.secondsLeft(now.plusMillis(1), now));
+        assertEquals(0, RestartPlan.secondsLeft(now.minusMillis(5), now));
     }
 }

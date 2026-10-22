@@ -1,15 +1,18 @@
 package dev.toka.anchor.command;
 
+import cn.nukkit.Player;
 import cn.nukkit.command.Command;
 import cn.nukkit.command.CommandSender;
 import cn.nukkit.command.data.CommandParamType;
 import cn.nukkit.command.data.CommandParameter;
 import dev.toka.anchor.Main;
+import dev.toka.anchor.upkeep.RestartPlan;
+import java.time.Instant;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 
-/** /anchor: the help for everything in tokaAnchor and its status. */
+/** /anchor: help for everything in tokaAnchor, its status, and the upkeep commands (restart, clean, maintenance). */
 public final class AnchorCommand extends Command {
     private final Main plugin;
     private final HelpPages help;
@@ -17,28 +20,86 @@ public final class AnchorCommand extends Command {
     public AnchorCommand(Main plugin) {
         super("anchor", plugin.text(null, "desc.anchor"), "/anchor help");
         this.plugin = plugin;
-        setPermission("tokaanchor.use;tokaanchor.ban");
+        setPermission("tokaanchor.use;tokaanchor.ban;tokaanchor.admin");
         getCommandParameters().clear();
         addCommandParameters("help", new CommandParameter[]{CommandParameter.newEnum("action", new String[]{"help"}),
-                CommandParameter.newEnum("section", true, new String[]{"ban", "link"}), CommandParameter.newType("page", true, CommandParamType.INT)});
+                CommandParameter.newEnum("section", true, new String[]{"ban", "link", "upkeep"}), CommandParameter.newType("page", true, CommandParamType.INT)});
         addCommandParameters("status", new CommandParameter[]{CommandParameter.newEnum("action", new String[]{"status"})});
+        addCommandParameters("restartIn", new CommandParameter[]{CommandParameter.newEnum("action", new String[]{"restart"}), CommandParameter.newType("seconds", CommandParamType.INT)});
+        addCommandParameters("restartOther", new CommandParameter[]{CommandParameter.newEnum("action", new String[]{"restart"}), CommandParameter.newEnum("what", new String[]{"cancel", "status"})});
+        addCommandParameters("clean", new CommandParameter[]{CommandParameter.newEnum("action", new String[]{"clean"})});
+        addCommandParameters("maintenance", new CommandParameter[]{CommandParameter.newEnum("action", new String[]{"maintenance"}),
+                CommandParameter.newEnum("state", new String[]{"on", "off"}), CommandParameter.newType("message", true, CommandParamType.MESSAGE)});
         help = new HelpPages("anchor", List.of(
                 new HelpPages.Section("ban", "tokaanchor.ban", List.of("b", "bTimed", "ub", "blist")),
-                new HelpPages.Section("link", "tokaanchor.ban", List.of("blink", "linkRule"))), plugin::text);
+                new HelpPages.Section("link", "tokaanchor.ban", List.of("blink", "linkRule")),
+                new HelpPages.Section("upkeep", "tokaanchor.admin", List.of("restart", "restartStatus", "restartCancel", "clean", "maintenance"))), plugin::text);
+    }
+
+    private void send(CommandSender to, String key, Object... args) { to.sendMessage(plugin.text(to, key, args)); }
+
+    private boolean admin(CommandSender sender) {
+        if (sender.hasPermission("tokaanchor.admin")) return true;
+        send(sender, "cmd.denied");
+        return false;
     }
 
     @Override public boolean execute(CommandSender sender, String label, String[] args) {
-        if (!testPermissionSilent(sender)) { sender.sendMessage(plugin.text(sender, "cmd.denied")); return true; }
+        if (!testPermissionSilent(sender)) { send(sender, "cmd.denied"); return true; }
         String action = args.length == 0 ? "help" : args[0].toLowerCase(Locale.ROOT);
         switch (action) {
             case "help" -> help.show(sender, args.length > 1 ? Arrays.copyOfRange(args, 1, args.length) : new String[0]);
             case "status" -> {
-                if (!sender.hasPermission("tokaanchor.ban")) { sender.sendMessage(plugin.text(sender, "cmd.denied")); break; }
-                long now = System.currentTimeMillis();
-                sender.sendMessage(plugin.text(sender, "status", plugin.bans().book().list(now).size(), plugin.bans().sightings().snapshot().size()));
+                if (!sender.hasPermission("tokaanchor.ban")) { send(sender, "cmd.denied"); break; }
+                send(sender, "status", plugin.bans().book().list(System.currentTimeMillis()).size(), plugin.bans().sightings().snapshot().size());
             }
-            default -> sender.sendMessage(plugin.text(sender, "cmd.usage"));
+            case "restart" -> { if (admin(sender)) restart(sender, args); }
+            case "clean" -> { if (admin(sender)) clean(sender); }
+            case "maintenance" -> { if (admin(sender)) maintenance(sender, args); }
+            default -> send(sender, "cmd.usage");
         }
         return true;
+    }
+
+    private void restart(CommandSender sender, String[] args) {
+        var restarter = plugin.restarter();
+        if (restarter == null) { send(sender, "restart.off"); return; }
+        String what = args.length > 1 ? args[1].toLowerCase(Locale.ROOT) : "status";
+        switch (what) {
+            case "status" -> restarter.target().ifPresentOrElse(
+                    t -> send(sender, "restart.next", java.time.format.DateTimeFormatter.ofPattern("MM-dd HH:mm:ss").format(t.atZone(java.time.ZoneId.systemDefault())), RestartPlan.secondsLeft(t, Instant.now())),
+                    () -> send(sender, "restart.none"));
+            case "cancel" -> { restarter.cancel(); plugin.getLogger().info(sender.getName() + " 取消了手動重啟。"); send(sender, "restart.cancelled"); }
+            default -> {
+                long seconds;
+                try { seconds = Long.parseLong(what); } catch (NumberFormatException notANumber) { send(sender, "cmd.usage"); return; }
+                if (seconds < 1 || seconds > 86_400) { send(sender, "cmd.usage"); return; }
+                restarter.restartIn(seconds);
+                plugin.getLogger().info(sender.getName() + " 排定 " + seconds + " 秒後重啟。");
+                send(sender, "restart.set", seconds);
+            }
+        }
+    }
+
+    private void clean(CommandSender sender) {
+        var result = plugin.cleaner().clean();
+        plugin.getLogger().info(sender.getName() + " 執行清理，共 " + result.total() + " 個。");
+        plugin.broadcast("clean.done", result.items() + result.projectiles(), result.creatures(), result.orbs());
+    }
+
+    private void maintenance(CommandSender sender, String[] args) {
+        if (args.length < 2) { send(sender, "cmd.usage"); return; }
+        var mode = plugin.maintenanceMode();
+        boolean on = args[1].equalsIgnoreCase("on");
+        if (!on && !args[1].equalsIgnoreCase("off")) { send(sender, "cmd.usage"); return; }
+        mode.set(on, args.length > 2 ? String.join(" ", Arrays.copyOfRange(args, 2, args.length)) : null);
+        plugin.getLogger().info(sender.getName() + (on ? " 開啟" : " 關閉") + "維護模式。");
+        if (on) {
+            for (Player player : plugin.getServer().getOnlinePlayers().values())
+                if (!mode.admits(player.getName())) player.kick(plugin.text(player, "maintenance.kick", mode.message()), false);
+            send(sender, "maintenance.on");
+        } else {
+            send(sender, "maintenance.off");
+        }
     }
 }

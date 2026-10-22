@@ -4,30 +4,44 @@ import cn.nukkit.Player;
 import cn.nukkit.command.Command;
 import cn.nukkit.command.CommandSender;
 import cn.nukkit.plugin.PluginBase;
+import dev.toka.anchor.ban.Ban;
 import dev.toka.anchor.ban.BanBook;
 import dev.toka.anchor.ban.BanService;
 import dev.toka.anchor.command.AnchorCommand;
 import dev.toka.anchor.command.BanCommand;
 import dev.toka.anchor.link.Sightings;
 import dev.toka.anchor.listener.GateListener;
+import dev.toka.anchor.upkeep.Cleaner;
+import dev.toka.anchor.upkeep.Maintenance;
+import dev.toka.anchor.upkeep.RestartPlan;
+import dev.toka.anchor.upkeep.Restarter;
 import dev.toka.i18n.Messages;
 import dev.toka.storage.Backend;
 import dev.toka.storage.DocumentStore;
 import dev.toka.storage.StoreConfig;
 import java.nio.file.Path;
+import java.time.LocalTime;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 
 /**
- * Switchboard for the server's upkeep: bans and the check at login. Each part works on its own; if the ban data cannot be
- * read the plugin refuses to start rather than start with an empty list.
+ * Switchboard for the server's upkeep: bans and the check at login, scheduled restarts, clean-up of loose entities and
+ * maintenance mode. Each part works on its own and is switched on in the configuration; if the ban data cannot be read the
+ * plugin refuses to start rather than start with an empty list.
  */
 public final class Main extends PluginBase {
+    private static volatile Main instance;
     private DocumentStore store;
     private BanService bans;
+    private Restarter restarter;
+    private Cleaner cleaner;
+    private Maintenance maintenance;
     private final List<Command> commands = new ArrayList<>();
     private final Map<String, Messages> languages = new HashMap<>();
 
@@ -42,16 +56,52 @@ public final class Main extends PluginBase {
             store = DocumentStore.open(new StoreConfig(backend, directory, config.getInt("storage.schema-version", 1)));
             bans = new BanService(new BanBook(store), new Sightings(store, config.getInt("link.keep", 10)),
                     config.getString("link.auto-ban", "direct").equalsIgnoreCase("direct"), getLogger()::warning);
-            getServer().getPluginManager().registerEvents(new GateListener(this, bans), this);
+            maintenance = new Maintenance(getServer(), new HashSet<>(config.getStringList("maintenance.allow")), config.getBoolean("maintenance.enabled", false),
+                    config.getString("maintenance.message", ""));
+            cleaner = new Cleaner(getServer(), config.getBoolean("clean.items", true), config.getBoolean("clean.creatures", true),
+                    config.getBoolean("clean.projectiles", true), config.getBoolean("clean.orbs", true));
+            getServer().getPluginManager().registerEvents(new GateListener(this, bans, maintenance), this);
+            startRestarter(config);
+            startCleaning(config);
             register(new BanCommand(this, bans, BanCommand.Kind.BAN, "b"));
             register(new BanCommand(this, bans, BanCommand.Kind.LIFT, "ub"));
             register(new BanCommand(this, bans, BanCommand.Kind.LIST, "blist"));
             register(new BanCommand(this, bans, BanCommand.Kind.LINK, "blink"));
             register(new AnchorCommand(this));
+            instance = this;
         } catch (Exception error) {
             getLogger().error("tokaAnchor 未能載入；為避免以空資料取代封禁名單，插件將停用。", error);
             getServer().getPluginManager().disablePlugin(this);
         }
+    }
+
+    private void startRestarter(cn.nukkit.utils.Config config) {
+        if (!config.getBoolean("restart.enabled", false)) return;
+        List<String> rejected = new ArrayList<>();
+        List<LocalTime> times = RestartPlan.parse(config.getStringList("restart.times"), rejected);
+        if (!rejected.isEmpty()) getLogger().warning("restart.times 有無法讀取的時間（要寫成 HH:mm），已略過：" + rejected);
+        ZoneId chosen;
+        try {
+            String id = config.getString("restart.zone", "");
+            chosen = id.isBlank() ? ZoneId.systemDefault() : ZoneId.of(id);
+        } catch (java.time.DateTimeException bad) {
+            getLogger().warning("restart.zone 不是有效的時區，改用系統時區。");
+            chosen = ZoneId.systemDefault();
+        }
+        ZoneId zone = chosen;
+        Set<Integer> steps = new HashSet<>(config.getIntegerList("restart.countdown"));
+        restarter = new Restarter(this, times, zone, steps, config.getString("restart.transfer-address", ""), config.getInt("restart.transfer-port", 19132));
+        restarter.start();
+        restarter.target().ifPresentOrElse(t -> getLogger().info("下次排程重啟：" + t.atZone(zone)), () -> getLogger().info("沒有設定重啟時間，只能手動 /anchor restart。"));
+    }
+
+    private void startCleaning(cn.nukkit.utils.Config config) {
+        int minutes = config.getInt("clean.interval-minutes", 0);
+        if (minutes <= 0) return;
+        getServer().getScheduler().scheduleDelayedRepeatingTask(this, () -> {
+            var result = cleaner.clean();
+            if (result.total() > 0) broadcast("clean.done", result.items() + result.projectiles(), result.creatures(), result.orbs());
+        }, minutes * 1200, minutes * 1200);
     }
 
     /** Registers a command unless another plugin already owns the name, and says so instead of taking it. */
@@ -70,25 +120,39 @@ public final class Main extends PluginBase {
             command.unregister(map);
         }
         commands.clear();
+        if (instance == this) instance = null;
         if (bans != null) bans.close();
         if (store != null) try { store.close(); } catch (java.io.IOException error) { getLogger().error("關閉儲存庫失敗。", error); }
     }
 
     public BanService bans() { return bans; }
 
+    /** Null when restarts are not switched on. */
+    public Restarter restarter() { return restarter; }
+
+    public Cleaner cleaner() { return cleaner; }
+
+    public Maintenance maintenanceMode() { return maintenance; }
+
+    /** Whether the server is in maintenance mode right now; false when tokaAnchor is not running. For other plugins, by reflection. */
+    public static boolean maintenance() {
+        Main main = instance;
+        return main != null && main.maintenance != null && main.maintenance.on();
+    }
+
     /**
      * Entry point for the one-time hand-over from zero (called by reflection with plain JSON): {"bans":[{name,reason,source,created}],
      * "sightings":[{name,address,device}]}. Only adds what is missing, so running it twice changes nothing. Returns a one-line report.
      */
     public static String importJson(String json) throws java.io.IOException {
-        Main main = (Main) cn.nukkit.Server.getInstance().getPluginManager().getPlugin("tokaAnchor");
+        Main main = instance;
         if (main == null || !main.isEnabled() || main.bans == null) throw new IllegalStateException("tokaAnchor is not running");
         var root = com.google.gson.JsonParser.parseString(json).getAsJsonObject();
         long now = System.currentTimeMillis();
-        List<dev.toka.anchor.ban.Ban> bans = new ArrayList<>();
+        List<Ban> bans = new ArrayList<>();
         for (var item : root.getAsJsonArray("bans")) {
             var row = item.getAsJsonObject();
-            bans.add(new dev.toka.anchor.ban.Ban(row.get("name").getAsString(), row.get("reason").getAsString(), row.get("source").getAsString(), row.get("created").getAsLong(), null));
+            bans.add(new Ban(row.get("name").getAsString(), row.get("reason").getAsString(), row.get("source").getAsString(), row.get("created").getAsLong(), null));
         }
         int added = main.bans.book().addMissing(bans, now);
         int noted = 0;
@@ -98,6 +162,12 @@ public final class Main extends PluginBase {
         }
         main.bans.sightings().save();
         return "bans added " + added + " of " + bans.size() + ", accounts with new login data " + noted;
+    }
+
+    /** Tells every player in their own language, and the console in the configured one. */
+    public void broadcast(String key, Object... args) {
+        for (Player player : getServer().getOnlinePlayers().values()) player.sendMessage(text(player, key, args));
+        getLogger().info(text(null, key, args));
     }
 
     /** Text in the sender's language; a null sender (a login that has not finished) gets the configured one. */

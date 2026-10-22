@@ -10,3 +10,6 @@ permissions:
   tokaanchor.ban:
     description: 封禁、解封、查看封禁名單與關聯帳號
     default: op
+  tokaanchor.admin:
+    description: 排程重啟、清理、維護模式
+    default: op

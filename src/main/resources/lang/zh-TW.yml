@@ -30,6 +30,20 @@ link:
   none: "§e[關聯帳號] 沒有 ${0} 的紀錄或關聯帳號。"
   direct: "§c直接相關（位址與裝置都相同）"
   possible: "§7可能相關（只有位址或裝置相同）"
+restart:
+  off: "§e[重啟] 排程重啟未啟用（config 的 restart.enabled）。"
+  next: "§b[重啟] 下次重啟 ${0}，還有 ${1} 秒。"
+  none: "§e[重啟] 目前沒有排定的重啟。"
+  set: "§a[重啟] 已排定 ${0} 秒後重啟。"
+  cancelled: "§a[重啟] 已取消，改回每日排程。"
+  countdown: "§e[重啟] 伺服器將在 ${0} 秒後重啟。"
+  now: "§c[重啟] 伺服器重啟中，請稍後重新連線。"
+clean:
+  done: "§b[清理] 已清理 ${0} 個掉落物與投射物、${1} 隻生物、${2} 個經驗球。"
+maintenance:
+  kick: "§e${0}"
+  on: "§a[維護] 維護模式已開啟，非 OP 與名單外的玩家已被請出。"
+  off: "§a[維護] 維護模式已關閉。"
 help:
   title: "§6=== §f§l${0} 說明§r §6==="
   index: "§e/${0} help ${1} §7- §b${2}（${3} 項）"
@@ -38,6 +52,7 @@ help:
   unknown: "§e沒有「${0}」這個說明區段，輸入 /${1} help 查看。"
   sec:
     ban: "封禁與解封"
+    upkeep: "重啟、清理與維護"
     link: "關聯帳號"
   b: "§e/b <玩家> <原因...> §7- §b永久封禁，並一併封禁位址與裝置都相同的關聯帳號"
   bTimed: "§e/b <玩家> <時間> <原因...> §7- §b限時封禁；時間如 30m、12h、7d、2w，perm 為永久"
@@ -45,3 +60,8 @@ help:
   blist: "§e/blist [頁] §7- §b查看封禁名單，新的在前"
   blink: "§e/blink <玩家> §7- §b查看和這個帳號位址或裝置相同的帳號"
   linkRule: "§8直接相關＝位址與裝置都相同，封禁時自動連帶；只有一項相同只提示，不自動封禁（宿舍、家人共用網路很常見）。"
+  restart: "§e/anchor restart <秒> §7- §b排定幾秒後重啟（1~86400），並倒數通知"
+  restartStatus: "§e/anchor restart status §7- §b查看下次重啟時間"
+  restartCancel: "§e/anchor restart cancel §7- §b取消手動排定的重啟，改回每日排程"
+  clean: "§e/anchor clean §7- §b立刻清理掉落物、經驗球、投射物與沒有名稱標籤的生物"
+  maintenance: "§e/anchor maintenance <on|off> [訊息...] §7- §b開關維護模式；開啟時只有 OP 與名單內的玩家能登入"

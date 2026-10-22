@@ -8,6 +8,7 @@ import cn.nukkit.event.player.PlayerPreLoginEvent;
 import dev.toka.anchor.Main;
 import dev.toka.anchor.ban.Ban;
 import dev.toka.anchor.ban.BanService;
+import dev.toka.anchor.upkeep.Maintenance;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Optional;
@@ -16,15 +17,22 @@ import java.util.Optional;
 public final class GateListener implements Listener {
     private final Main plugin;
     private final BanService bans;
+    private final Maintenance maintenance;
 
-    public GateListener(Main plugin, BanService bans) {
+    public GateListener(Main plugin, BanService bans, Maintenance maintenance) {
         this.plugin = plugin;
         this.bans = bans;
+        this.maintenance = maintenance;
     }
 
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onPreLogin(PlayerPreLoginEvent event) {
         Player player = event.getPlayer();
+        if (maintenance.on() && !maintenance.admits(player.getName())) {
+            event.setKickMessage(plugin.text(null, "maintenance.kick", maintenance.message()));
+            event.setCancelled();
+            return;
+        }
         String device = null;
         try { device = player.getLoginChainData().getDeviceId(); } catch (RuntimeException unknown) { /* no device id: address only */ }
         Optional<Ban> ban = bans.checkLogin(player.getName(), player.getAddress(), device, System.currentTimeMillis());
