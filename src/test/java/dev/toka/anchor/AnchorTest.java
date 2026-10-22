@@ -119,4 +119,14 @@ public class AnchorTest {
     @Test public void bothLanguagesHaveTheSameKeys() throws Exception {
         assertEquals(keys("zh-TW.yml"), keys("en-US.yml"));
     }
+
+    @Test public void importingTwiceAddsEachBanOnce() throws Exception {
+        try (var store = open(Files.createTempDirectory("anchor"))) {
+            BanBook book = new BanBook(store);
+            List<Ban> batch = List.of(new Ban("Alex", "grief", "zero", NOW, null), new Ban("alex", "dup", "zero", NOW, null), new Ban("Sam", "spam", "zero", NOW, null));
+            assertEquals(2, book.addMissing(batch, NOW));
+            assertEquals(0, book.addMissing(batch, NOW));
+            assertEquals("grief", book.active("alex", NOW).get().reason());
+        }
+    }
 }

@@ -79,6 +79,14 @@ public final class BanBook {
         bans = immutable;
     }
 
+    /** Adds only the bans whose account has no active ban yet; returns how many were added. Safe to run again. */
+    public synchronized int addMissing(List<Ban> candidates, long now) throws IOException {
+        List<Ban> fresh = new ArrayList<>();
+        for (Ban ban : candidates) if (active(ban.name(), now).isEmpty() && fresh.stream().noneMatch(b -> b.key().equals(ban.key()))) fresh.add(ban);
+        if (!fresh.isEmpty()) add(fresh, now);
+        return fresh.size();
+    }
+
     /** True when a ban was removed. */
     public synchronized boolean remove(String name, long now) throws IOException {
         Map<String, Ban> next = new HashMap<>(bans);

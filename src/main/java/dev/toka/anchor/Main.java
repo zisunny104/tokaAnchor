@@ -76,6 +76,30 @@ public final class Main extends PluginBase {
 
     public BanService bans() { return bans; }
 
+    /**
+     * Entry point for the one-time hand-over from zero (called by reflection with plain JSON): {"bans":[{name,reason,source,created}],
+     * "sightings":[{name,address,device}]}. Only adds what is missing, so running it twice changes nothing. Returns a one-line report.
+     */
+    public static String importJson(String json) throws java.io.IOException {
+        Main main = (Main) cn.nukkit.Server.getInstance().getPluginManager().getPlugin("tokaAnchor");
+        if (main == null || !main.isEnabled() || main.bans == null) throw new IllegalStateException("tokaAnchor is not running");
+        var root = com.google.gson.JsonParser.parseString(json).getAsJsonObject();
+        long now = System.currentTimeMillis();
+        List<dev.toka.anchor.ban.Ban> bans = new ArrayList<>();
+        for (var item : root.getAsJsonArray("bans")) {
+            var row = item.getAsJsonObject();
+            bans.add(new dev.toka.anchor.ban.Ban(row.get("name").getAsString(), row.get("reason").getAsString(), row.get("source").getAsString(), row.get("created").getAsLong(), null));
+        }
+        int added = main.bans.book().addMissing(bans, now);
+        int noted = 0;
+        for (var item : root.getAsJsonArray("sightings")) {
+            var row = item.getAsJsonObject();
+            if (main.bans.sightings().note(row.get("name").getAsString(), row.get("address").getAsString(), row.get("device").getAsString())) noted++;
+        }
+        main.bans.sightings().save();
+        return "bans added " + added + " of " + bans.size() + ", accounts with new login data " + noted;
+    }
+
     /** Text in the sender's language; a null sender (a login that has not finished) gets the configured one. */
     public String text(CommandSender sender, String key, Object... args) {
         String tag = sender instanceof Player player ? player.getLocale().toLanguageTag() : getConfig().getString("language", "zh-TW");
