@@ -48,7 +48,7 @@ public final class BanService implements AutoCloseable {
         List<String> banned = new ArrayList<>(), possible = new ArrayList<>();
         banned.add(name);
         related.forEach((other, strength) -> {
-            if (strength == LinkFinder.Strength.DIRECT && autoBan) { banned.add(other); added.add(new Ban(other, name + " 關聯帳號", source, now, expires)); }
+            if (strength == LinkFinder.Strength.DIRECT && autoBan) { banned.add(other); added.add(new Ban(other, name + " 關聯帳號", source, now, expires, name)); }
             else possible.add(other);
         });
         book.add(added, now);
@@ -64,12 +64,13 @@ public final class BanService implements AutoCloseable {
             for (String other : LinkFinder.direct(LinkFinder.related(sightings.snapshot(), name))) {
                 Optional<Ban> theirs = book.active(other, now);
                 if (theirs.isEmpty()) continue;
-                Ban copy = new Ban(name, other + " 關聯帳號", "Anchor", now, theirs.get().expires());
-                book.add(List.of(copy), now);
+                Ban copy = new Ban(name, other + " 關聯帳號", "Anchor", now, theirs.get().expires(), other);
+                // The login is refused even when the copy cannot be saved; it is simply made again at the next attempt.
+                try { book.add(List.of(copy), now); } catch (IOException failure) { warn.accept("無法儲存關聯帳號的封禁：" + failure); }
                 return Optional.of(copy);
             }
             return Optional.empty();
-        } catch (IOException | RuntimeException fault) {
+        } catch (RuntimeException fault) {
             warn.accept("登入封禁檢查出錯，這次放行：" + fault);
             return Optional.empty();
         }

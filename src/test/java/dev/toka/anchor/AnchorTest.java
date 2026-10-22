@@ -167,4 +167,24 @@ public class AnchorTest {
         for (String file : new String[]{"zh-TW.yml", "en-US.yml"})
             try (InputStream in = AnchorTest.class.getResourceAsStream("/lang/" + file)) { noBooleanKeys(new Yaml().load(in), file); }
     }
+
+    @Test public void liftingAnAccountLiftsTheCopiesMadeFromIt() throws Exception {
+        try (var store = open(Files.createTempDirectory("anchor")); var service = serviceWith(store, true)) {
+            service.ban("Alex", "grief", "op", null, NOW);
+            service.checkLogin("Fresh", "1.1.1.1", "dev-a", NOW + 1);
+            assertEquals(List.of("Alex", "alt", "Fresh").stream().sorted().toList(), service.book().list(NOW + 2).stream().map(Ban::name).sorted().toList());
+            var lifted = service.book().removeWithLinked("Alex", NOW + 3);
+            assertEquals(3, lifted.size());
+            assertTrue(service.book().list(NOW + 4).isEmpty());
+            assertTrue(service.checkLogin("Fresh", "1.1.1.1", "dev-a", NOW + 5).isEmpty());
+        }
+    }
+
+    @Test public void aBanThatCannotBeSavedStillRefusesTheLinkedLogin() throws Exception {
+        var store = open(Files.createTempDirectory("anchor"));
+        var service = serviceWith(store, true);
+        service.ban("Alex", "grief", "op", null, NOW);
+        store.close();
+        assertTrue(service.checkLogin("Fresh", "1.1.1.1", "dev-a", NOW + 1).isPresent());
+    }
 }

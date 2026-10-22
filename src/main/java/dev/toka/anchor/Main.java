@@ -54,22 +54,27 @@ public final class Main extends PluginBase {
             if (!directory.startsWith(pluginDirectory)) throw new IllegalArgumentException("storage.directory must remain inside the plugin data folder");
             Backend backend = Backend.valueOf(config.getString("storage.backend", "SQLITE").strip().toUpperCase(Locale.ROOT));
             store = DocumentStore.open(new StoreConfig(backend, directory, config.getInt("storage.schema-version", 1)));
-            bans = new BanService(new BanBook(store), new Sightings(store, config.getInt("link.keep", 10)),
-                    config.getString("link.auto-ban", "direct").equalsIgnoreCase("direct"), getLogger()::warning);
+            Sightings sightings;
+            try { sightings = new Sightings(store, config.getInt("link.keep", 10)); }
+            catch (Exception | LinkageError unreadable) {
+                getLogger().error("登入位址與裝置的紀錄讀不出來；封禁照常運作，但暫時不辨識關聯帳號，也不會覆寫該紀錄。", unreadable);
+                sightings = Sightings.unavailable(config.getInt("link.keep", 10));
+            }
+            bans = new BanService(new BanBook(store), sightings, config.getString("link.auto-ban", "direct").equalsIgnoreCase("direct"), getLogger()::warning);
             maintenance = new Maintenance(getServer(), new HashSet<>(config.getStringList("maintenance.allow")), config.getBoolean("maintenance.enabled", false),
                     config.getString("maintenance.message", ""));
             cleaner = new Cleaner(getServer(), config.getBoolean("clean.items", true), config.getBoolean("clean.creatures", true),
                     config.getBoolean("clean.projectiles", true), config.getBoolean("clean.orbs", true));
             getServer().getPluginManager().registerEvents(new GateListener(this, bans, maintenance), this);
-            startRestarter(config);
-            startCleaning(config);
+            try { startRestarter(config); } catch (Exception | LinkageError failure) { getLogger().error("排程重啟無法啟動，其餘功能照常。", failure); }
+            try { startCleaning(config); } catch (Exception | LinkageError failure) { getLogger().error("定時清理無法啟動，其餘功能照常。", failure); }
             register(new BanCommand(this, bans, BanCommand.Kind.BAN, "b"));
             register(new BanCommand(this, bans, BanCommand.Kind.LIFT, "ub"));
             register(new BanCommand(this, bans, BanCommand.Kind.LIST, "blist"));
             register(new BanCommand(this, bans, BanCommand.Kind.LINK, "blink"));
             register(new AnchorCommand(this));
             instance = this;
-        } catch (Exception error) {
+        } catch (Exception | LinkageError error) {
             getLogger().error("tokaAnchor 未能載入；為避免以空資料取代封禁名單，插件將停用。", error);
             getServer().getPluginManager().disablePlugin(this);
         }
@@ -98,10 +103,15 @@ public final class Main extends PluginBase {
     private void startCleaning(cn.nukkit.utils.Config config) {
         int minutes = config.getInt("clean.interval-minutes", 0);
         if (minutes <= 0) return;
+        int ticks = (int) Math.min(Integer.MAX_VALUE, minutes * 1200L);
         getServer().getScheduler().scheduleDelayedRepeatingTask(this, () -> {
-            var result = cleaner.clean();
-            if (result.total() > 0) broadcast("clean.done", result.items() + result.projectiles(), result.creatures(), result.orbs());
-        }, minutes * 1200, minutes * 1200);
+            try {
+                var result = cleaner.clean();
+                if (result.total() > 0) broadcast("clean.done", result.items() + result.projectiles(), result.creatures(), result.orbs());
+            } catch (RuntimeException failure) {
+                getLogger().warning("定時清理出錯，這次略過：" + failure);
+            }
+        }, ticks, ticks);
     }
 
     /** Registers a command unless another plugin already owns the name, and says so instead of taking it. */
@@ -152,6 +162,7 @@ public final class Main extends PluginBase {
         List<Ban> bans = new ArrayList<>();
         for (var item : root.getAsJsonArray("bans")) {
             var row = item.getAsJsonObject();
+            if (!row.has("name") || !row.has("reason") || !row.has("source") || !row.has("created")) continue;
             bans.add(new Ban(row.get("name").getAsString(), row.get("reason").getAsString(), row.get("source").getAsString(), row.get("created").getAsLong(), null));
         }
         int added = main.bans.book().addMissing(bans, now);

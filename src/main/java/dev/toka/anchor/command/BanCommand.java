@@ -72,15 +72,19 @@ public final class BanCommand extends Command {
         send(sender, "ban.done", args[0], reason);
         if (outcome.banned().size() > 1) send(sender, "ban.linked", String.join("、", outcome.banned().subList(1, outcome.banned().size())));
         if (!outcome.possible().isEmpty()) send(sender, "ban.maybe", String.join("、", outcome.possible()));
-        var online = plugin.getServer().getPlayerExact(args[0]);
-        if (online != null) online.kick(plugin.text(online, "ban.kicked", reason), false);
+        for (String banned : outcome.banned()) {
+            var online = plugin.getServer().getPlayerExact(banned);
+            if (online != null) online.kick(plugin.text(online, "ban.kicked", reason), false);
+        }
     }
 
     private void lift(CommandSender sender, String[] args) throws IOException {
         if (args.length < 1) throw new IllegalArgumentException("USAGE");
-        if (!bans.book().remove(args[0], System.currentTimeMillis())) { send(sender, "ban.none", args[0]); return; }
-        plugin.getLogger().info("解封：" + sender.getName() + " 解除 " + args[0]);
+        List<String> lifted = bans.book().removeWithLinked(args[0], System.currentTimeMillis());
+        if (lifted.isEmpty()) { send(sender, "ban.none", args[0]); return; }
+        plugin.getLogger().info("解封：" + sender.getName() + " 解除 " + lifted);
         send(sender, "ban.lifted", args[0]);
+        if (lifted.size() > 1) send(sender, "ban.liftedLinked", String.join("、", lifted.subList(1, lifted.size())));
     }
 
     private void list(CommandSender sender, String[] args) {

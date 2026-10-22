@@ -27,6 +27,14 @@ public final class Sightings {
     private final int keep;
     private final Map<String, Seen> seen = new ConcurrentHashMap<>();
 
+    /** An empty record that is never written, for when the stored one cannot be read; bans do not depend on it. */
+    public static Sightings unavailable(int keep) { return new Sightings(keep); }
+
+    private Sightings(int keep) {
+        this.store = null;
+        this.keep = keep;
+    }
+
     public Sightings(DocumentStore store, int keep) throws IOException {
         this.store = store;
         this.keep = keep;
@@ -71,6 +79,7 @@ public final class Sightings {
     public Map<String, Seen> snapshot() { return Map.copyOf(seen); }
 
     public synchronized void save() throws IOException {
+        if (store == null) return;
         JsonArray rows = new JsonArray();
         List<Map.Entry<String, Seen>> entries = new ArrayList<>(seen.entrySet());
         entries.sort(Map.Entry.comparingByKey());

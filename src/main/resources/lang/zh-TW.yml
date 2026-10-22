@@ -19,6 +19,7 @@ ban:
   maybe: "§7可能相關但未封禁（只有位址或裝置相同）：${0}"
   none: "§e[封禁] ${0} 目前沒有被封禁。"
   lifted: "§a[封禁] 已解除 ${0} 的封禁。"
+  liftedLinked: "§e同時解除了由它連帶封禁的關聯帳號：${0}"
 list:
   header: "§b[封禁名單] 共 ${0} 個，第 ${1}/${2} 頁"
   row: "§e${0} §7- §f${1} §8| ${2} 由 ${3} §8| §7${4}"
@@ -63,3 +64,4 @@ help:
   restartCancel: "§e/anchor restart cancel §7- §b取消手動排定的重啟，改回每日排程"
   clean: "§e/anchor clean §7- §b立刻清理掉落物、經驗球、投射物與沒有名稱標籤的生物"
   maintenance: "§e/anchor maintenance <on|off> [訊息...] §7- §b開關維護模式；開啟時只有 OP 與名單內的玩家能登入"
+  status: "§e/anchor status §7- §b查看目前封禁數與已記錄的帳號數"

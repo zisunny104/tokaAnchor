@@ -31,7 +31,7 @@ public final class AnchorCommand extends Command {
         addCommandParameters("maintenance", new CommandParameter[]{CommandParameter.newEnum("action", new String[]{"maintenance"}),
                 CommandParameter.newEnum("state", new String[]{"on", "off"}), CommandParameter.newType("message", true, CommandParamType.MESSAGE)});
         help = new HelpPages("anchor", List.of(
-                new HelpPages.Section("ban", "tokaanchor.ban", List.of("b", "bTimed", "ub", "blist")),
+                new HelpPages.Section("ban", "tokaanchor.ban", List.of("b", "bTimed", "ub", "blist", "status")),
                 new HelpPages.Section("link", "tokaanchor.ban", List.of("blink", "linkRule")),
                 new HelpPages.Section("upkeep", "tokaanchor.admin", List.of("restart", "restartStatus", "restartCancel", "clean", "maintenance"))), plugin::text);
     }
@@ -67,7 +67,7 @@ public final class AnchorCommand extends Command {
         String what = args.length > 1 ? args[1].toLowerCase(Locale.ROOT) : "status";
         switch (what) {
             case "status" -> restarter.target().ifPresentOrElse(
-                    t -> send(sender, "restart.next", java.time.format.DateTimeFormatter.ofPattern("MM-dd HH:mm:ss").format(t.atZone(java.time.ZoneId.systemDefault())), RestartPlan.secondsLeft(t, Instant.now())),
+                    t -> send(sender, "restart.next", java.time.format.DateTimeFormatter.ofPattern("MM-dd HH:mm:ss").format(t.atZone(restarter.zone())), RestartPlan.secondsLeft(t, Instant.now())),
                     () -> send(sender, "restart.none"));
             case "cancel" -> { restarter.cancel(); plugin.getLogger().info(sender.getName() + " 取消了手動重啟。"); send(sender, "restart.cancelled"); }
             default -> {
@@ -96,7 +96,7 @@ public final class AnchorCommand extends Command {
         plugin.getLogger().info(sender.getName() + (on ? " 開啟" : " 關閉") + "維護模式。");
         if (on) {
             for (Player player : plugin.getServer().getOnlinePlayers().values())
-                if (!mode.admits(player.getName())) player.kick(plugin.text(player, "maintenance.kick", mode.message()), false);
+                if (player != sender && !player.hasPermission("tokaanchor.admin") && !mode.admits(player.getName())) player.kick(plugin.text(player, "maintenance.kick", mode.message()), false);
             send(sender, "maintenance.on");
         } else {
             send(sender, "maintenance.off");

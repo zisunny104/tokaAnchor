@@ -1,5 +1,6 @@
 package dev.toka.anchor.upkeep;
 
+import cn.nukkit.Player;
 import cn.nukkit.Server;
 import cn.nukkit.entity.Entity;
 import cn.nukkit.entity.EntityCreature;
@@ -32,7 +33,7 @@ public final class Cleaner {
         int item = 0, creature = 0, projectile = 0, orb = 0;
         for (Level level : server.getLevels().values()) {
             for (Entity entity : level.getEntities()) {
-                if (entity.closed) continue;
+                if (entity.closed || entity instanceof Player) continue;
                 if (items && entity instanceof EntityItem) { entity.close(); item++; }
                 else if (orbs && entity instanceof EntityXPOrb) { entity.close(); orb++; }
                 else if (projectiles && entity instanceof EntityProjectile) { entity.close(); projectile++; }

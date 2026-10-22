@@ -19,6 +19,7 @@ ban:
   maybe: "§7Possibly related, not banned (only the address or the device matches): ${0}"
   none: "§e[Ban] ${0} is not banned."
   lifted: "§a[Ban] The ban on ${0} is lifted."
+  liftedLinked: "§eAlso lifted the linked accounts banned along with it: ${0}"
 list:
   header: "§b[Bans] ${0} in all, page ${1}/${2}"
   row: "§e${0} §7- §f${1} §8| ${2} by ${3} §8| §7${4}"
@@ -63,3 +64,4 @@ help:
   restartCancel: "§e/anchor restart cancel §7- §bCancel a manual restart and return to the daily schedule"
   clean: "§e/anchor clean §7- §bRemove dropped items, experience orbs, projectiles and creatures without a name tag now"
   maintenance: "§e/anchor maintenance <on|off> [message...] §7- §bSwitch maintenance mode; while on, only operators and the allowed names can log in"
+  status: "§e/anchor status §7- §bShow how many accounts are banned and recorded"

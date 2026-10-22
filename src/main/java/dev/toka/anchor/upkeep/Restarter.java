@@ -42,6 +42,8 @@ public final class Restarter {
         }, 20);
     }
 
+    public ZoneId zone() { return zone; }
+
     /** The next restart, or empty when none is planned. */
     public synchronized Optional<Instant> target() { return Optional.ofNullable(target); }
 
@@ -82,6 +84,8 @@ public final class Restarter {
                 player.dataPacket(packet);
             }
         }
-        plugin.getServer().shutdown();
+        // Give the transfer packets a moment to leave before the network stops. The server only stops: bringing it back up is up to
+        // whatever launched it (a service, a script).
+        plugin.getServer().getScheduler().scheduleDelayedTask(plugin, () -> plugin.getServer().shutdown(), transferAddress.isBlank() ? 1 : 40);
     }
 }
