@@ -1,0 +1,12 @@
+name: tokaAnchor
+main: dev.toka.anchor.Main
+version: "0.1.0"
+api: ["1.0.4"]
+load: POSTWORLD
+permissions:
+  tokaanchor.use:
+    description: 查看說明
+    default: true
+  tokaanchor.ban:
+    description: 封禁、解封、查看封禁名單與關聯帳號
+    default: op

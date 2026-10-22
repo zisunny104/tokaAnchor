@@ -1,0 +1,47 @@
+cmd:
+  denied: "§cYou do not have permission to use this command."
+  failed: "§c[Ban] Could not finish: ${0}"
+  usage: "§e[Ban] Wrong usage; type /anchor help for the commands."
+desc:
+  anchor: "tokaAnchor help and status"
+  ban: "Ban a player"
+  lift: "Lift a ban"
+  list: "List bans"
+  link: "Show linked accounts"
+status: "§b[Anchor] ${0} accounts are banned; logins of ${1} accounts are recorded."
+word:
+  forever: "permanent"
+ban:
+  forever: "permanent"
+  until: "until ${0}"
+  kick: "§c[You are on the ban list]§r\n§ePlayer ${0}§r\n§eReason ${1}§r\n§eBanned ${2} by ${3}§r\n§eLength ${4}§r${5}"
+  kicked: "§c[You have been banned] Reason: ${0}"
+  done: "§a[Ban] ${0} is banned. Reason: ${1}"
+  linked: "§eLinked accounts banned too: ${0}"
+  maybe: "§7Possibly related, not banned (only the address or the device matches): ${0}"
+  none: "§e[Ban] ${0} is not banned."
+  lifted: "§a[Ban] The ban on ${0} is lifted."
+list:
+  header: "§b[Bans] ${0} in all, page ${1}/${2}"
+  row: "§e${0} §7- §f${1} §8| ${2} by ${3} §8| §7${4}"
+link:
+  header: "§b[Linked accounts] ${0}:"
+  row: "§e${0} §7- ${1}"
+  none: "§e[Linked accounts] Nothing recorded for ${0}, or no linked accounts."
+  direct: "§cDirectly linked (same address and same device)"
+  possible: "§7Possibly linked (only the address or the device matches)"
+help:
+  title: "§6=== §f§l${0} help§r §6==="
+  index: "§e/${0} help ${1} §7- §b${2} (${3})"
+  section: "§6--- §f${0}§r §7page ${1}/${2} §6---"
+  next: "§8Next page: /${0} help ${1} ${2}"
+  unknown: "§eNo help section \"${0}\"; type /${1} help."
+  sec:
+    ban: "Bans and unbans"
+    link: "Linked accounts"
+  b: "§e/b <player> <reason...> §7- §bBan for good, and ban linked accounts with the same address and device"
+  bTimed: "§e/b <player> <length> <reason...> §7- §bBan for a time: 30m, 12h, 7d, 2w; perm is permanent"
+  ub: "§e/ub <player> §7- §bLift a ban"
+  blist: "§e/blist [page] §7- §bShow the ban list, newest first"
+  blink: "§e/blink <player> §7- §bShow accounts sharing an address or a device with this one"
+  linkRule: "§8Directly linked = same address and device, banned along automatically; one match only is shown, never acted on (dorms and families share networks)."

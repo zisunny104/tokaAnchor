@@ -1,0 +1,15 @@
+language: zh-TW
+storage:
+  backend: SQLITE
+  schema-version: 1
+  directory: storage
+ban:
+  # 顯示在封禁訊息最後一行，例如申訴方式；留空就不顯示。
+  appeal: ""
+# 關聯帳號：記錄每個帳號登入過的位址與裝置，用來認出同一個人的多個帳號。
+link:
+  # direct：封禁時一併封禁「位址與裝置都相同」的帳號，且這類帳號登入時也會被擋；
+  # 只有位址或只有裝置相同的帳號不會自動封禁，只在封禁後與 /blink 提示。none：完全不自動處理。
+  auto-ban: direct
+  # 每個帳號最多保留幾個位址與裝置，超過時丟掉最舊的。
+  keep: 10
