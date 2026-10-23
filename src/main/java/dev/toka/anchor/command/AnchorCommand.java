@@ -29,12 +29,15 @@ public final class AnchorCommand extends Command {
         addCommandParameters("restartIn", new CommandParameter[]{CommandParameter.newEnum("action", new String[]{"restart"}), CommandParameter.newType("seconds", CommandParamType.INT)});
         addCommandParameters("restartOther", new CommandParameter[]{CommandParameter.newEnum("action", new String[]{"restart"}), CommandParameter.newEnum("what", new String[]{"cancel", "status"})});
         addCommandParameters("clean", new CommandParameter[]{CommandParameter.newEnum("action", new String[]{"clean"})});
+        addCommandParameters("kill", new CommandParameter[]{CommandParameter.newEnum("action", new String[]{"kill"}), CommandParameter.newType("player", CommandParamType.TARGET)});
+        addCommandParameters("run", new CommandParameter[]{CommandParameter.newEnum("action", new String[]{"run"}), CommandParameter.newType("player", CommandParamType.TARGET),
+                CommandParameter.newType("command", CommandParamType.RAWTEXT)});
         addCommandParameters("maintenance", new CommandParameter[]{CommandParameter.newEnum("action", new String[]{"maintenance"}),
                 CommandParameter.newEnum("state", new String[]{"on", "off"}), CommandParameter.newType("message", true, CommandParamType.MESSAGE)});
         help = new HelpPages("anchor", List.of(
                 new HelpPages.Section("ban", "tokaanchor.ban", List.of("b", "bTimed", "ub", "blist", "status")),
                 new HelpPages.Section("link", "tokaanchor.ban", List.of("blink", "linkRule")),
-                new HelpPages.Section("upkeep", "tokaanchor.admin", List.of("restart", "restartStatus", "restartCancel", "clean", "maintenance"))), plugin::text);
+                new HelpPages.Section("upkeep", "tokaanchor.admin", List.of("restart", "restartStatus", "restartCancel", "clean", "maintenance", "kill", "run"))), plugin::text);
     }
 
     private void send(CommandSender to, String key, Object... args) { to.sendMessage(plugin.text(to, key, args)); }
@@ -56,6 +59,8 @@ public final class AnchorCommand extends Command {
             }
             case "restart" -> { if (admin(sender)) restart(sender, args); }
             case "clean" -> { if (admin(sender)) clean(sender); }
+            case "kill" -> { if (admin(sender)) kill(sender, args); }
+            case "run" -> { if (admin(sender)) runAs(plugin, sender, Arrays.copyOfRange(args, 1, args.length)); }
             case "maintenance" -> { if (admin(sender)) maintenance(sender, args); }
             default -> send(sender, "cmd.usage");
         }
@@ -82,6 +87,25 @@ public final class AnchorCommand extends Command {
                 send(sender, "restart.set", Readable.number(seconds));
             }
         }
+    }
+
+    private void kill(CommandSender sender, String[] args) {
+        Player target = args.length < 2 ? null : plugin.getServer().getPlayerExact(args[1]);
+        if (target == null) { send(sender, "run.noPlayer"); return; }
+        target.kill();
+        plugin.getLogger().info(sender.getName() + " 讓 " + target.getName() + " 死亡。");
+        send(sender, "kill.done", target.getName());
+    }
+
+    /** Carries a command out as an online player: the administrator's way of doing for someone what only they can do. */
+    static void runAs(Main plugin, CommandSender sender, String[] args) {
+        if (args.length < 2) { sender.sendMessage(plugin.text(sender, "run.usage")); return; }
+        Player target = plugin.getServer().getPlayer(args[0]);
+        if (target == null) { sender.sendMessage(plugin.text(sender, "run.noPlayer")); return; }
+        String command = String.join(" ", Arrays.copyOfRange(args, 1, args.length));
+        plugin.getLogger().info(sender.getName() + " 以 " + target.getName() + " 的身分執行：" + command);
+        sender.sendMessage(plugin.text(sender, "run.done", target.getName(), command));
+        plugin.getServer().dispatchCommand(target, command);
     }
 
     private void clean(CommandSender sender) {

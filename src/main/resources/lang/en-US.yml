@@ -4,6 +4,7 @@ cmd:
   usage: "§e[Ban] Wrong usage; type /anchor help for the commands."
 desc:
   anchor: "tokaAnchor help and status"
+  run: "Run a command as a player (administrators)"
   ban: "Ban a player"
   lift: "Lift a ban"
   list: "List bans"
@@ -43,6 +44,12 @@ restart:
   cancelled: "§a[Restart] Cancelled; back to the daily schedule."
   countdown: "§e[Restart] The server restarts in ${0} seconds."
   now: "§c[Restart] The server is restarting; reconnect in a moment."
+run:
+  usage: "§e[Command] Usage: /c <player> <command>"
+  noPlayer: "§e[Command] That player is not online"
+  done: "§a[Command] Ran ${1} as ${0}"
+kill:
+  done: "§a[Server] ${0} was killed"
 clean:
   done: "§b[Clean] Removed ${0} dropped items and projectiles, ${1} creatures, ${2} experience orbs."
 maintenance:
@@ -68,6 +75,8 @@ help:
   restart: "§e/anchor restart <seconds> §7- §bPlan a restart in that many seconds (1-86400), with a countdown"
   restartStatus: "§e/anchor restart status §7- §bShow when the next restart is"
   restartCancel: "§e/anchor restart cancel §7- §bCancel a manual restart and return to the daily schedule"
+  kill: "§e/anchor kill <player> §7- §bKill an online player"
+  run: "§e/anchor run <player> <command> §7- §bRun a command as that player (also /c)"
   clean: "§e/anchor clean §7- §bRemove dropped items, experience orbs, projectiles and creatures without a name tag now"
   maintenance: "§e/anchor maintenance <on|off> [message...] §7- §bSwitch maintenance mode; while on, only operators and the allowed names can log in"
   status: "§e/anchor status §7- §bShow how many accounts are banned and recorded"

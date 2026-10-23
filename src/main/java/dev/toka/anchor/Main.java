@@ -9,6 +9,7 @@ import dev.toka.anchor.ban.BanBook;
 import dev.toka.anchor.ban.BanService;
 import dev.toka.anchor.command.AnchorCommand;
 import dev.toka.anchor.command.BanCommand;
+import dev.toka.anchor.command.RunCommand;
 import dev.toka.anchor.link.Sightings;
 import dev.toka.anchor.listener.GateListener;
 import dev.toka.anchor.upkeep.Cleaner;
@@ -78,6 +79,7 @@ public final class Main extends PluginBase {
             register(new BanCommand(this, bans, BanCommand.Kind.LIST, "blist"));
             register(new BanCommand(this, bans, BanCommand.Kind.LINK, "blink"));
             register(new AnchorCommand(this));
+            register(new RunCommand(this));
             instance = this;
         } catch (Exception | LinkageError error) {
             getLogger().error("tokaAnchor 未能載入；為避免以空資料取代封禁名單，插件將停用。", error);
@@ -166,6 +168,9 @@ public final class Main extends PluginBase {
     }
 
     /** Whether the server is in maintenance mode right now; false when tokaAnchor is not running. For other plugins, by reflection. */
+    /** Whether the administrator commands kill and run are here. For zero's hand-over check, by reflection. */
+    public static boolean handlesAdminCommands() { return instance != null; }
+
     public static boolean maintenance() {
         Main main = instance;
         return main != null && main.maintenance != null && main.maintenance.on();

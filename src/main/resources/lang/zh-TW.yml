@@ -4,6 +4,7 @@ cmd:
   usage: "§e[封禁] 用法錯誤，輸入 /anchor help 查看指令。"
 desc:
   anchor: "tokaAnchor 說明與狀態"
+  run: "以玩家的身分執行指令（管理員）"
   ban: "封禁玩家"
   lift: "解除封禁"
   list: "封禁名單"
@@ -43,6 +44,14 @@ restart:
   cancelled: "§a[重啟] 已取消，改回每日排程。"
   countdown: "§e[重啟] 伺服器將在 ${0} 秒後重啟。"
   now: "§c[重啟] 伺服器重啟中，請稍後重新連線。"
+run:
+  usage: "§e[指令] 用法：/c <玩家> <指令>"
+  noPlayer: "§e[指令] 目標玩家不在線上"
+  # ${0}＝玩家、${1}＝指令
+  done: "§a[指令] 已對玩家 ${0} 下 ${1} 指令"
+kill:
+  # ${0}＝玩家
+  done: "§a[伺服] 已讓 ${0} 死亡"
 clean:
   done: "§b[清理] 已清理 ${0} 個掉落物與投射物、${1} 隻生物、${2} 個經驗球。"
 maintenance:
@@ -68,6 +77,8 @@ help:
   restart: "§e/anchor restart <秒> §7- §b排定幾秒後重啟（1~86400），並倒數通知"
   restartStatus: "§e/anchor restart status §7- §b查看下次重啟時間"
   restartCancel: "§e/anchor restart cancel §7- §b取消手動排定的重啟，改回每日排程"
+  kill: "§e/anchor kill <玩家> §7- §b讓在線玩家死亡"
+  run: "§e/anchor run <玩家> <指令> §7- §b以那位玩家的身分執行指令（也可用 /c）"
   clean: "§e/anchor clean §7- §b立刻清理掉落物、經驗球、投射物與沒有名稱標籤的生物"
   maintenance: "§e/anchor maintenance <on|off> [訊息...] §7- §b開關維護模式；開啟時只有 OP 與名單內的玩家能登入"
   status: "§e/anchor status §7- §b查看目前封禁數與已記錄的帳號數"
