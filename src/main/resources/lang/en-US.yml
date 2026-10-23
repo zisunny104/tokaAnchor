@@ -29,9 +29,15 @@ link:
   none: "§e[Linked accounts] Nothing recorded for ${0}, or no linked accounts."
   direct: "§cDirectly linked (same address and same device)"
   possible: "§7Possibly linked (only the address or the device matches)"
+time:
+  day: "${0} d"
+  hour: "${0} h"
+  minute: "${0} min"
+  second: "${0} s"
 restart:
   "off": "§e[Restart] Scheduled restarts are off (restart.enabled in the config)."
-  next: "§b[Restart] Next restart ${0}, in ${1} seconds."
+  next: "§b[Restart] Next restart: ${0}"
+  in: "§b[Restart] That is in ${0} (${1} seconds)"
   none: "§e[Restart] No restart is planned."
   set: "§a[Restart] Restart planned in ${0} seconds."
   cancelled: "§a[Restart] Cancelled; back to the daily schedule."

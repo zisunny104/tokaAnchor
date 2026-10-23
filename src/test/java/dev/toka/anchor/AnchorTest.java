@@ -6,6 +6,7 @@ import dev.toka.anchor.ban.BanService;
 import dev.toka.anchor.ban.Span;
 import dev.toka.anchor.link.LinkFinder;
 import dev.toka.anchor.link.Sightings;
+import dev.toka.anchor.upkeep.Readable;
 import dev.toka.anchor.upkeep.RestartPlan;
 import dev.toka.storage.Backend;
 import dev.toka.storage.DocumentStore;
@@ -186,5 +187,16 @@ public class AnchorTest {
         service.ban("Alex", "grief", "op", null, NOW);
         store.close();
         assertTrue(service.checkLogin("Fresh", "1.1.1.1", "dev-a", NOW + 1).isPresent());
+    }
+
+    @Test public void bigNumbersGetThousandsSeparatorsAndSpansShowTwoUnits() {
+        assertEquals("3,000,000", Readable.number(3_000_000));
+        assertEquals("999", Readable.number(999));
+        java.util.function.BiFunction<String, Long, String> unit = (name, count) -> count + name.substring(0, 1);
+        assertEquals("13h 44m", Readable.span(13 * 3600 + 44 * 60 + 50, unit));
+        assertEquals("2d 3h", Readable.span(2 * 86400 + 3 * 3600 + 5 * 60, unit));
+        assertEquals("1h 5s", Readable.span(3600 + 5, unit));
+        assertEquals("45s", Readable.span(45, unit));
+        assertEquals("0s", Readable.span(0, unit));
     }
 }

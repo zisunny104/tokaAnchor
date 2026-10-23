@@ -13,6 +13,7 @@ import dev.toka.anchor.link.Sightings;
 import dev.toka.anchor.listener.GateListener;
 import dev.toka.anchor.upkeep.Cleaner;
 import dev.toka.anchor.upkeep.Maintenance;
+import dev.toka.anchor.upkeep.Readable;
 import dev.toka.anchor.upkeep.RestartPlan;
 import dev.toka.anchor.upkeep.Restarter;
 import dev.toka.i18n.Messages;
@@ -97,7 +98,11 @@ public final class Main extends PluginBase {
         Set<Integer> steps = new HashSet<>(config.getIntegerList("restart.countdown"));
         restarter = new Restarter(this, times, zone, steps, config.getString("restart.transfer-address", ""), config.getInt("restart.transfer-port", 19132));
         restarter.start();
-        restarter.target().ifPresentOrElse(t -> getLogger().info("下次排程重啟：" + t.atZone(zone)), () -> getLogger().info("沒有設定重啟時間，只能手動 /anchor restart。"));
+        restarter.target().ifPresentOrElse(t -> {
+            long left = RestartPlan.secondsLeft(t, java.time.Instant.now());
+            getLogger().info(text(null, "restart.next", restartTime(t, zone)));
+            getLogger().info(text(null, "restart.in", duration(null, left), Readable.number(left)));
+        }, () -> getLogger().info("沒有設定重啟時間，只能手動 /anchor restart。"));
     }
 
     private void startCleaning(cn.nukkit.utils.Config config) {
@@ -178,7 +183,17 @@ public final class Main extends PluginBase {
             if (main.bans.sightings().note(row.get("name").getAsString(), row.get("address").getAsString(), row.get("device").getAsString())) noted++;
         }
         main.bans.sightings().save();
-        return "bans added " + added + " of " + bans.size() + ", accounts with new login data " + noted;
+        return "bans added " + Readable.number(added) + " of " + Readable.number(bans.size()) + ", accounts with new login data " + Readable.number(noted);
+    }
+
+    /** A moment as people read it: date and time in the configured zone. */
+    public static String restartTime(java.time.Instant moment, ZoneId zone) {
+        return java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss").format(moment.atZone(zone));
+    }
+
+    /** A span as words in the sender's language, two units at most, for example "13 小時 44 分鐘". */
+    public String duration(CommandSender sender, long seconds) {
+        return Readable.span(seconds, (unit, count) -> text(sender, "time." + unit, Readable.number(count)));
     }
 
     /** Tells every player in their own language, and the console in the configured one. */

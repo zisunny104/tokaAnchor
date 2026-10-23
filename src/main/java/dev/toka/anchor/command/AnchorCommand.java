@@ -6,6 +6,7 @@ import cn.nukkit.command.CommandSender;
 import cn.nukkit.command.data.CommandParamType;
 import cn.nukkit.command.data.CommandParameter;
 import dev.toka.anchor.Main;
+import dev.toka.anchor.upkeep.Readable;
 import dev.toka.anchor.upkeep.RestartPlan;
 import java.time.Instant;
 import java.util.Arrays;
@@ -51,7 +52,7 @@ public final class AnchorCommand extends Command {
             case "help" -> help.show(sender, args.length > 1 ? Arrays.copyOfRange(args, 1, args.length) : new String[0]);
             case "status" -> {
                 if (!sender.hasPermission("tokaanchor.ban")) { send(sender, "cmd.denied"); break; }
-                send(sender, "status", plugin.bans().book().list(System.currentTimeMillis()).size(), plugin.bans().sightings().snapshot().size());
+                send(sender, "status", Readable.number(plugin.bans().book().list(System.currentTimeMillis()).size()), Readable.number(plugin.bans().sightings().snapshot().size()));
             }
             case "restart" -> { if (admin(sender)) restart(sender, args); }
             case "clean" -> { if (admin(sender)) clean(sender); }
@@ -66,9 +67,11 @@ public final class AnchorCommand extends Command {
         if (restarter == null) { send(sender, "restart.off"); return; }
         String what = args.length > 1 ? args[1].toLowerCase(Locale.ROOT) : "status";
         switch (what) {
-            case "status" -> restarter.target().ifPresentOrElse(
-                    t -> send(sender, "restart.next", java.time.format.DateTimeFormatter.ofPattern("MM-dd HH:mm:ss").format(t.atZone(restarter.zone())), RestartPlan.secondsLeft(t, Instant.now())),
-                    () -> send(sender, "restart.none"));
+            case "status" -> restarter.target().ifPresentOrElse(t -> {
+                long left = RestartPlan.secondsLeft(t, Instant.now());
+                send(sender, "restart.next", Main.restartTime(t, restarter.zone()));
+                send(sender, "restart.in", plugin.duration(sender, left), Readable.number(left));
+            }, () -> send(sender, "restart.none"));
             case "cancel" -> { restarter.cancel(); plugin.getLogger().info(sender.getName() + " 取消了手動重啟。"); send(sender, "restart.cancelled"); }
             default -> {
                 long seconds;
@@ -76,7 +79,7 @@ public final class AnchorCommand extends Command {
                 if (seconds < 1 || seconds > 86_400) { send(sender, "cmd.usage"); return; }
                 restarter.restartIn(seconds);
                 plugin.getLogger().info(sender.getName() + " 排定 " + seconds + " 秒後重啟。");
-                send(sender, "restart.set", seconds);
+                send(sender, "restart.set", Readable.number(seconds));
             }
         }
     }
