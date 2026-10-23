@@ -81,7 +81,7 @@ public final class Main extends PluginBase {
     }
 
     private void startRestarter(cn.nukkit.utils.Config config) {
-        if (!config.getBoolean("restart.enabled", false)) return;
+        if (!config.getBoolean("restart.enabled", true)) return;
         List<String> rejected = new ArrayList<>();
         List<LocalTime> times = RestartPlan.parse(config.getStringList("restart.times"), rejected);
         if (!rejected.isEmpty()) getLogger().warning("restart.times 有無法讀取的時間（要寫成 HH:mm），已略過：" + rejected);
@@ -141,6 +141,12 @@ public final class Main extends PluginBase {
     public Restarter restarter() { return restarter; }
 
     public Cleaner cleaner() { return cleaner; }
+
+    /** Whether scheduled restarts are running here. For zero's hand-over check, by reflection; false when not running. */
+    public static boolean restartPlanned() {
+        Main main = instance;
+        return main != null && main.restarter != null;
+    }
 
     public Maintenance maintenanceMode() { return maintenance; }
 

@@ -15,7 +15,7 @@ link:
   keep: 10
 # 排程重啟：每天在指定時間重啟，並倒數通知。
 restart:
-  enabled: false
+  enabled: true
   # 每天的重啟時間（HH:mm，24 小時制，可寫多個）；時區留空用系統時區。
   times: ["03:15"]
   zone: ""
