@@ -4,7 +4,6 @@ import cn.nukkit.Player;
 import cn.nukkit.command.Command;
 import cn.nukkit.command.CommandSender;
 import cn.nukkit.plugin.PluginBase;
-import dev.toka.anchor.ban.Ban;
 import dev.toka.anchor.ban.BanBook;
 import dev.toka.anchor.ban.BanService;
 import dev.toka.anchor.command.AnchorCommand;
@@ -157,12 +156,6 @@ public final class Main extends PluginBase {
 
     public Cleaner cleaner() { return cleaner; }
 
-    /** Whether scheduled restarts are running here. For zero's hand-over check, by reflection; false when not running. */
-    public static boolean restartPlanned() {
-        Main main = instance;
-        return main != null && main.restarter != null;
-    }
-
     public Maintenance maintenanceMode() { return maintenance; }
 
     /** Whether the player has been still for the set time; false when tokaAnchor is not running. For other plugins, by reflection. */
@@ -171,38 +164,9 @@ public final class Main extends PluginBase {
         return main != null && main.afk != null && main.afk.isAfk(player);
     }
 
-    /** Whether the server is in maintenance mode right now; false when tokaAnchor is not running. For other plugins, by reflection. */
-    /** Whether the administrator commands kill and run are here. For zero's hand-over check, by reflection. */
-    public static boolean handlesAdminCommands() { return instance != null; }
-
     public static boolean maintenance() {
         Main main = instance;
         return main != null && main.maintenance != null && main.maintenance.on();
-    }
-
-    /**
-     * Entry point for the one-time hand-over from zero (called by reflection with plain JSON): {"bans":[{name,reason,source,created}],
-     * "sightings":[{name,address,device}]}. Only adds what is missing, so running it twice changes nothing. Returns a one-line report.
-     */
-    public static String importJson(String json) throws java.io.IOException {
-        Main main = instance;
-        if (main == null || !main.isEnabled() || main.bans == null) throw new IllegalStateException("tokaAnchor is not running");
-        var root = com.google.gson.JsonParser.parseString(json).getAsJsonObject();
-        long now = System.currentTimeMillis();
-        List<Ban> bans = new ArrayList<>();
-        for (var item : root.getAsJsonArray("bans")) {
-            var row = item.getAsJsonObject();
-            if (!row.has("name") || !row.has("reason") || !row.has("source") || !row.has("created")) continue;
-            bans.add(new Ban(row.get("name").getAsString(), row.get("reason").getAsString(), row.get("source").getAsString(), row.get("created").getAsLong(), null));
-        }
-        int added = main.bans.book().addMissing(bans, now);
-        int noted = 0;
-        for (var item : root.getAsJsonArray("sightings")) {
-            var row = item.getAsJsonObject();
-            if (main.bans.sightings().note(row.get("name").getAsString(), row.get("address").getAsString(), row.get("device").getAsString())) noted++;
-        }
-        main.bans.sightings().save();
-        return "bans added " + Readable.number(added) + " of " + Readable.number(bans.size()) + ", accounts with new login data " + Readable.number(noted);
     }
 
     /** A moment as people read it: date and time in the configured zone. */
