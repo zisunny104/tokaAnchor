@@ -43,6 +43,7 @@ public final class Main extends PluginBase {
     private Restarter restarter;
     private Cleaner cleaner;
     private Maintenance maintenance;
+    private dev.toka.anchor.upkeep.Afk afk;
     private final List<Command> commands = new ArrayList<>();
     private final Map<String, Messages> languages = new HashMap<>();
 
@@ -67,6 +68,9 @@ public final class Main extends PluginBase {
             cleaner = new Cleaner(getServer(), config.getBoolean("clean.items", true), config.getBoolean("clean.creatures", true),
                     config.getBoolean("clean.projectiles", true), config.getBoolean("clean.orbs", true));
             getServer().getPluginManager().registerEvents(new GateListener(this, bans, maintenance), this);
+            afk = new dev.toka.anchor.upkeep.Afk(System::currentTimeMillis, config.getInt("afk.seconds", 300));
+            getServer().getPluginManager().registerEvents(afk, this);
+            afk.touchAll(getServer().getOnlinePlayers().values());
             try { startRestarter(config); } catch (Exception | LinkageError failure) { getLogger().error("排程重啟無法啟動，其餘功能照常。", failure); }
             try { startCleaning(config); } catch (Exception | LinkageError failure) { getLogger().error("定時清理無法啟動，其餘功能照常。", failure); }
             register(new BanCommand(this, bans, BanCommand.Kind.BAN, "b"));
@@ -154,6 +158,12 @@ public final class Main extends PluginBase {
     }
 
     public Maintenance maintenanceMode() { return maintenance; }
+
+    /** Whether the player has been still for the set time; false when tokaAnchor is not running. For other plugins, by reflection. */
+    public static boolean isAfk(java.util.UUID player) {
+        Main main = instance;
+        return main != null && main.afk != null && main.afk.isAfk(player);
+    }
 
     /** Whether the server is in maintenance mode right now; false when tokaAnchor is not running. For other plugins, by reflection. */
     public static boolean maintenance() {
