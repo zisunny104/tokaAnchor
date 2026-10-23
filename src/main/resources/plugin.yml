@@ -1,6 +1,6 @@
 name: tokaAnchor
 main: dev.toka.anchor.Main
-version: "0.2.1"
+version: "0.2.2"
 api: ["1.0.4"]
 load: POSTWORLD
 permissions:
@@ -16,3 +16,6 @@ permissions:
   tokaanchor.keepmode:
     description: 登入後還原離開前的遊戲模式（其他人登入時是伺服器預設模式）
     default: op
+  tokaanchor.enter:
+    description: 在登入限制（access.mode: linked）開啟時可以進入伺服器
+    default: false

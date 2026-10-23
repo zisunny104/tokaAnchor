@@ -36,6 +36,12 @@ clean:
   creatures: true
   projectiles: true
   orbs: true
+# 誰可以登入。open：不限制；linked：只有 OP、allow 名單內的名稱，以及在 LuckPerms 有 tokaanchor.enter 權限的玩家能進來
+# （把這個權限給「已綁定 Discord」的群組與管理員群組即可，規則跟著群組走）。這會取代遊戲內建的允許清單，開啟後請把 server.properties 的 white-list 關掉。
+access:
+  mode: open
+  allow: []
+  message: "需要先綁定 Discord 才能加入，請到 Discord 完成綁定後再來。"
 # 維護模式：開啟時只有 OP 與 allow 名單內的名稱能登入。也可用 /anchor maintenance on|off 即時切換（重啟後回到這裡的設定）。
 maintenance:
   enabled: false

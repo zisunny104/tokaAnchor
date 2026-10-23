@@ -69,7 +69,7 @@ public final class Main extends PluginBase {
                     config.getString("maintenance.message", ""));
             cleaner = new Cleaner(getServer(), config.getBoolean("clean.items", true), config.getBoolean("clean.creatures", true),
                     config.getBoolean("clean.projectiles", true), config.getBoolean("clean.orbs", true));
-            getServer().getPluginManager().registerEvents(new GateListener(this, bans, maintenance), this);
+            getServer().getPluginManager().registerEvents(new GateListener(this, bans, maintenance, new dev.toka.anchor.upkeep.Access(getServer(), config.getString("access.mode", "open").equalsIgnoreCase("linked"), new HashSet<>(config.getStringList("access.allow")))), this);
             afk = new dev.toka.anchor.upkeep.Afk(System::currentTimeMillis, config.getInt("afk.seconds", 300));
             getServer().getPluginManager().registerEvents(afk, this);
             modes = new dev.toka.anchor.upkeep.ModeKeeper(new java.io.File(getDataFolder(), "modes.yml"));

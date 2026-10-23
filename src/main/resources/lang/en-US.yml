@@ -52,6 +52,8 @@ kill:
   done: "§a[Server] ${0} was killed"
 clean:
   done: "§b[Clean] Removed ${0} dropped items and projectiles, ${1} creatures, ${2} experience orbs."
+access:
+  kick: "§e${0}"
 maintenance:
   kick: "§e${0}"
   "on": "§a[Maintenance] Maintenance mode is on; everyone but operators and the allowed names was sent away."

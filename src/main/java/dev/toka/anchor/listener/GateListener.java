@@ -8,6 +8,7 @@ import cn.nukkit.event.player.PlayerPreLoginEvent;
 import dev.toka.anchor.Main;
 import dev.toka.anchor.ban.Ban;
 import dev.toka.anchor.ban.BanService;
+import dev.toka.anchor.upkeep.Access;
 import dev.toka.anchor.upkeep.Maintenance;
 import java.text.SimpleDateFormat;
 import java.util.Date;
@@ -18,11 +19,13 @@ public final class GateListener implements Listener {
     private final Main plugin;
     private final BanService bans;
     private final Maintenance maintenance;
+    private final Access access;
 
-    public GateListener(Main plugin, BanService bans, Maintenance maintenance) {
+    public GateListener(Main plugin, BanService bans, Maintenance maintenance, Access access) {
         this.plugin = plugin;
         this.bans = bans;
         this.maintenance = maintenance;
+        this.access = access;
     }
 
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
@@ -30,6 +33,11 @@ public final class GateListener implements Listener {
         Player player = event.getPlayer();
         if (maintenance.on() && !maintenance.admits(player.getName())) {
             event.setKickMessage(plugin.text(null, "maintenance.kick", maintenance.message()));
+            event.setCancelled();
+            return;
+        }
+        if (!access.admits(player.getUniqueId(), player.getName())) {
+            event.setKickMessage(plugin.text(null, "access.kick", plugin.getConfig().getString("access.message", "")));
             event.setCancelled();
             return;
         }
