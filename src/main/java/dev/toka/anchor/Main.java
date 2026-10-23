@@ -204,7 +204,7 @@ public final class Main extends PluginBase {
 
     /** Text in the sender's language; a null sender (a login that has not finished) gets the configured one. */
     public String text(CommandSender sender, String key, Object... args) {
-        String tag = sender instanceof Player player ? player.getLocale().toLanguageTag() : getConfig().getString("language", "zh-TW");
+        String tag = sender instanceof Player player && player.getLocale() != null ? player.getLocale().toLanguageTag() : getConfig().getString("language", "zh-TW");
         String selected = tag.startsWith("en") ? "en-US" : "zh-TW";
         return languages.computeIfAbsent(selected, t -> new Messages(getClass().getClassLoader(), getDataFolder().toPath(), t, line -> getLogger().warning(line))).text(key, args);
     }
