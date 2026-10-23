@@ -36,8 +36,8 @@ time:
   second: "${0} 秒"
 restart:
   "off": "§e[重啟] 排程重啟未啟用（config 的 restart.enabled）。"
-  next: "§b[重啟] 下次重啟：${0}"
-  in: "§b[重啟] 距離現在 ${0}（${1} 秒）"
+  next: "§b下次重啟：§a${0}"
+  in: "§b距離重啟還有 §a${0}§b（§a${1} §b秒）"
   none: "§e[重啟] 目前沒有排定的重啟。"
   set: "§a[重啟] 已排定 ${0} 秒後重啟。"
   cancelled: "§a[重啟] 已取消，改回每日排程。"
