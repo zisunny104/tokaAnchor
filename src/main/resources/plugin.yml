@@ -1,6 +1,6 @@
 name: tokaAnchor
 main: dev.toka.anchor.Main
-version: "0.2.0"
+version: "0.2.1"
 api: ["1.0.4"]
 load: POSTWORLD
 permissions:
@@ -12,4 +12,7 @@ permissions:
     default: op
   tokaanchor.admin:
     description: 排程重啟、清理、維護模式
+    default: op
+  tokaanchor.keepmode:
+    description: 登入後還原離開前的遊戲模式（其他人登入時是伺服器預設模式）
     default: op

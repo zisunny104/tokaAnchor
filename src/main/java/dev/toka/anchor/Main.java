@@ -45,6 +45,7 @@ public final class Main extends PluginBase {
     private Cleaner cleaner;
     private Maintenance maintenance;
     private dev.toka.anchor.upkeep.Afk afk;
+    private dev.toka.anchor.upkeep.ModeKeeper modes;
     private final List<Command> commands = new ArrayList<>();
     private final Map<String, Messages> languages = new HashMap<>();
 
@@ -71,6 +72,8 @@ public final class Main extends PluginBase {
             getServer().getPluginManager().registerEvents(new GateListener(this, bans, maintenance), this);
             afk = new dev.toka.anchor.upkeep.Afk(System::currentTimeMillis, config.getInt("afk.seconds", 300));
             getServer().getPluginManager().registerEvents(afk, this);
+            modes = new dev.toka.anchor.upkeep.ModeKeeper(new java.io.File(getDataFolder(), "modes.yml"));
+            getServer().getPluginManager().registerEvents(modes, this);
             afk.touchAll(getServer().getOnlinePlayers().values());
             try { startRestarter(config); } catch (Exception | LinkageError failure) { getLogger().error("排程重啟無法啟動，其餘功能照常。", failure); }
             try { startCleaning(config); } catch (Exception | LinkageError failure) { getLogger().error("定時清理無法啟動，其餘功能照常。", failure); }
@@ -135,6 +138,7 @@ public final class Main extends PluginBase {
     }
 
     @Override public void onDisable() {
+        if (modes != null) modes.rememberAll(getServer().getOnlinePlayers().values());
         var map = getServer().getCommandMap();
         for (Command command : commands) {
             map.getCommands().entrySet().removeIf(entry -> entry.getValue() == command);
