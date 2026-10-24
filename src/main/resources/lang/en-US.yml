@@ -42,7 +42,8 @@ restart:
   none: "§e[Restart] No restart is planned."
   set: "§a[Restart] Restart planned in ${0} seconds."
   cancelled: "§a[Restart] Cancelled; back to the daily schedule."
-  countdown: "§e[Restart] The server restarts in ${0} seconds."
+  countdown: "§e[Restart] The server restarts in ${0}."
+  top: "§cRestart in ${0}"
   now: "§c[Restart] The server is restarting; reconnect in a moment."
 run:
   usage: "§e[Command] Usage: /c <player> <command>"
@@ -51,6 +52,12 @@ run:
 kill:
   done: "§a[Server] ${0} was killed"
 clean:
+  started: "§b[Clean] Loose items and unnamed creatures are cleaned in ${0}; /clean cancel stops it."
+  cancelled: "§a[Clean] The clean-up was cancelled."
+  top: "§eClean-up in ${0}"
+  doneTop: "§aCleaned ${0}"
+  none: "§e[Clean] No clean-up is counting."
+  already: "§e[Clean] A clean-up is already counting."
   done: "§b[Clean] Removed ${0} dropped items and projectiles, ${1} creatures, ${2} experience orbs."
 access:
   kick: "§e${0}"
@@ -82,3 +89,5 @@ help:
   clean: "§e/anchor clean §7- §bRemove dropped items, experience orbs, projectiles and creatures without a name tag now"
   maintenance: "§e/anchor maintenance <on|off> [message...] §7- §bSwitch maintenance mode; while on, only operators and the allowed names can log in"
   status: "§e/anchor status §7- §bShow how many accounts are banned and recorded"
+log:
+  cleanFailed: "§eScheduled clean-up failed, skipped: §a${0}"

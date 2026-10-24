@@ -28,7 +28,8 @@ public final class AnchorCommand extends Command {
         addCommandParameters("status", new CommandParameter[]{CommandParameter.newEnum("action", new String[]{"status"})});
         addCommandParameters("restartIn", new CommandParameter[]{CommandParameter.newEnum("action", new String[]{"restart"}), CommandParameter.newType("seconds", CommandParamType.INT)});
         addCommandParameters("restartOther", new CommandParameter[]{CommandParameter.newEnum("action", new String[]{"restart"}), CommandParameter.newEnum("what", new String[]{"cancel", "status"})});
-        addCommandParameters("clean", new CommandParameter[]{CommandParameter.newEnum("action", new String[]{"clean"})});
+        addCommandParameters("clean", new CommandParameter[]{CommandParameter.newEnum("action", new String[]{"clean"}), CommandParameter.newType("seconds", true, cn.nukkit.command.data.CommandParamType.INT)});
+        addCommandParameters("cleanCancel", new CommandParameter[]{CommandParameter.newEnum("action", new String[]{"clean"}), CommandParameter.newEnum("cancel", new String[]{"cancel"})});
         addCommandParameters("kill", new CommandParameter[]{CommandParameter.newEnum("action", new String[]{"kill"}), CommandParameter.newType("player", CommandParamType.TARGET)});
         addCommandParameters("run", new CommandParameter[]{CommandParameter.newEnum("action", new String[]{"run"}), CommandParameter.newType("player", CommandParamType.TARGET),
                 CommandParameter.newType("command", CommandParamType.RAWTEXT)});
@@ -58,7 +59,7 @@ public final class AnchorCommand extends Command {
                 send(sender, "status", Readable.number(plugin.bans().book().list(System.currentTimeMillis()).size()), Readable.number(plugin.bans().sightings().snapshot().size()));
             }
             case "restart" -> { if (admin(sender)) restart(sender, args); }
-            case "clean" -> { if (admin(sender)) clean(sender); }
+            case "clean" -> { if (admin(sender)) clean(sender, args); }
             case "kill" -> { if (admin(sender)) kill(sender, args); }
             case "run" -> { if (admin(sender)) runAs(plugin, sender, Arrays.copyOfRange(args, 1, args.length)); }
             case "maintenance" -> { if (admin(sender)) maintenance(sender, args); }
@@ -108,10 +109,17 @@ public final class AnchorCommand extends Command {
         plugin.getServer().dispatchCommand(target, command);
     }
 
-    private void clean(CommandSender sender) {
-        var result = plugin.cleaner().clean();
-        plugin.getLogger().info(sender.getName() + " 執行清理，共 " + result.total() + " 個。");
-        plugin.broadcast("clean.done", result.items() + result.projectiles(), result.creatures(), result.orbs());
+    private void clean(CommandSender sender, String[] args) {
+        var countdown = plugin.cleanCountdown();
+        if (args.length > 1 && args[1].equalsIgnoreCase("cancel")) {
+            if (!countdown.cancel()) send(sender, "clean.none");
+            return;
+        }
+        int seconds = 0;
+        if (args.length > 1) {
+            try { seconds = Integer.parseInt(args[1]); } catch (NumberFormatException bad) { send(sender, "cmd.usage"); return; }
+        }
+        if (!countdown.start(seconds)) send(sender, "clean.already");
     }
 
     private void maintenance(CommandSender sender, String[] args) {

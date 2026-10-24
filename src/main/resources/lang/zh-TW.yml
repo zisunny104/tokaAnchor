@@ -42,7 +42,8 @@ restart:
   none: "§e[重啟] 目前沒有排定的重啟。"
   set: "§a[重啟] 已排定 ${0} 秒後重啟。"
   cancelled: "§a[重啟] 已取消，改回每日排程。"
-  countdown: "§e[重啟] 伺服器將在 ${0} 秒後重啟。"
+  countdown: "§e[重啟] 伺服器將在 ${0} 後重啟。"
+  top: "§c${0} 後重啟伺服器"
   now: "§c[重啟] 伺服器重啟中，請稍後重新連線。"
 run:
   usage: "§e[指令] 用法：/c <玩家> <指令>"
@@ -53,6 +54,12 @@ kill:
   # ${0}＝玩家
   done: "§a[伺服] 已讓 ${0} 死亡"
 clean:
+  started: "§b[清理] ${0} 後清理掉落物與沒有名字的生物，可以用 /clean cancel 取消。"
+  cancelled: "§a[清理] 已取消這次清理。"
+  top: "§e${0} 後清理掉落物"
+  doneTop: "§a已清理 ${0} 個"
+  none: "§e[清理] 目前沒有進行中的清理。"
+  already: "§e[清理] 已經在倒數了。"
   done: "§b[清理] 已清理 ${0} 個掉落物與投射物、${1} 隻生物、${2} 個經驗球。"
 access:
   kick: "§e${0}"
@@ -84,3 +91,5 @@ help:
   clean: "§e/anchor clean §7- §b立刻清理掉落物、經驗球、投射物與沒有名稱標籤的生物"
   maintenance: "§e/anchor maintenance <on|off> [訊息...] §7- §b開關維護模式；開啟時只有 OP 與名單內的玩家能登入"
   status: "§e/anchor status §7- §b查看目前封禁數與已記錄的帳號數"
+log:
+  cleanFailed: "§e定時清理出錯，這次略過：§a${0}"

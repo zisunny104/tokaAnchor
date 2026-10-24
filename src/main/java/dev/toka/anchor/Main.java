@@ -42,6 +42,7 @@ public final class Main extends PluginBase {
     private BanService bans;
     private Restarter restarter;
     private Cleaner cleaner;
+    private dev.toka.anchor.upkeep.CleanCountdown cleanCountdown;
     private Maintenance maintenance;
     private dev.toka.anchor.upkeep.Afk afk;
     private dev.toka.anchor.upkeep.ModeKeeper modes;
@@ -68,6 +69,7 @@ public final class Main extends PluginBase {
                     config.getString("maintenance.message", ""));
             cleaner = new Cleaner(getServer(), config.getBoolean("clean.items", true), config.getBoolean("clean.creatures", true),
                     config.getBoolean("clean.projectiles", true), config.getBoolean("clean.orbs", true));
+            cleanCountdown = new dev.toka.anchor.upkeep.CleanCountdown(this, config.getInt("clean.countdown-seconds", 10));
             getServer().getPluginManager().registerEvents(new GateListener(this, bans, maintenance, new dev.toka.anchor.upkeep.Access(getServer(), config.getString("access.mode", "open").equalsIgnoreCase("linked"), new HashSet<>(config.getStringList("access.allow")))), this);
             afk = new dev.toka.anchor.upkeep.Afk(System::currentTimeMillis, config.getInt("afk.seconds", 300));
             getServer().getPluginManager().registerEvents(afk, this);
@@ -82,6 +84,7 @@ public final class Main extends PluginBase {
             register(new BanCommand(this, bans, BanCommand.Kind.LINK, "blink"));
             register(new AnchorCommand(this));
             register(new RunCommand(this));
+            register(new dev.toka.anchor.command.CleanCommand(this));
             instance = this;
         } catch (Exception | LinkageError error) {
             getLogger().error("tokaAnchor 未能載入；為避免以空資料取代封禁名單，插件將停用。", error);
@@ -118,12 +121,8 @@ public final class Main extends PluginBase {
         if (minutes <= 0) return;
         int ticks = (int) Math.min(Integer.MAX_VALUE, minutes * 1200L);
         getServer().getScheduler().scheduleDelayedRepeatingTask(this, () -> {
-            try {
-                var result = cleaner.clean();
-                if (result.total() > 0) broadcast("clean.done", result.items() + result.projectiles(), result.creatures(), result.orbs());
-            } catch (RuntimeException failure) {
-                getLogger().warning("定時清理出錯，這次略過：" + failure);
-            }
+            try { cleanCountdown.start(cleanCountdown.minimum()); }
+            catch (RuntimeException failure) { getLogger().warning(text(null, "log.cleanFailed", failure.getClass().getSimpleName())); }
         }, ticks, ticks);
     }
 
@@ -137,6 +136,7 @@ public final class Main extends PluginBase {
     }
 
     @Override public void onDisable() {
+        if (cleanCountdown != null) cleanCountdown.shutdown();
         if (modes != null) modes.rememberAll(getServer().getOnlinePlayers().values());
         var map = getServer().getCommandMap();
         for (Command command : commands) {
@@ -155,6 +155,8 @@ public final class Main extends PluginBase {
     public Restarter restarter() { return restarter; }
 
     public Cleaner cleaner() { return cleaner; }
+
+    public dev.toka.anchor.upkeep.CleanCountdown cleanCountdown() { return cleanCountdown; }
 
     public Maintenance maintenanceMode() { return maintenance; }
 
@@ -183,6 +185,22 @@ public final class Main extends PluginBase {
     public void broadcast(String key, Object... args) {
         for (Player player : getServer().getOnlinePlayers().values()) player.sendMessage(text(player, key, args));
         getLogger().info(text(null, key, args));
+    }
+
+    /** A line at the top of every player's screen (tokaDisplay), in their language; without tokaDisplay it goes to the action bar. */
+    public void top(String key, Object... args) {
+        java.lang.reflect.Method flash = null;
+        var display = getServer().getPluginManager().getPlugin("tokaDisplay");
+        if (display != null && display.isEnabled()) {
+            try { flash = Class.forName("dev.toka.display.Main", true, display.getClass().getClassLoader()).getMethod("flash", Player.class, String.class, int.class, float.class, String.class); }
+            catch (ReflectiveOperationException | LinkageError older) { flash = null; }
+        }
+        for (Player player : getServer().getOnlinePlayers().values()) {
+            String line = text(player, key, args);
+            try { if (flash != null) { flash.invoke(null, player, line, 2, -1f, null); continue; } }
+            catch (ReflectiveOperationException | LinkageError unavailable) { /* action bar below */ }
+            player.sendActionBar(line);
+        }
     }
 
     /** Text in the sender's language; a null sender (a login that has not finished) gets the configured one. */

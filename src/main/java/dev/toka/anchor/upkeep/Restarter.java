@@ -62,9 +62,13 @@ public final class Restarter {
         if (target == null) return;
         long left = RestartPlan.secondsLeft(target, Instant.now());
         if (left > 0) {
-            if (steps.contains((int) Math.min(left, Integer.MAX_VALUE)) && left != announced) {
+            // the listed moments go to the chat as a record and to the top of the screen; the last ten seconds are top only, every second
+            boolean last = left <= 10;
+            if ((last || steps.contains((int) Math.min(left, Integer.MAX_VALUE))) && left != announced) {
                 announced = left;
-                plugin.broadcast("restart.countdown", left);
+                String span = plugin.duration(null, left);
+                if (!last) plugin.broadcast("restart.countdown", span);
+                plugin.top("restart.top", plugin.duration(null, left));
             }
             return;
         }
