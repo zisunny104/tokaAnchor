@@ -102,7 +102,7 @@ public class AnchorTest {
         sightings.note("Alex", "1.1.1.1", "dev-a");
         sightings.note("alt", "1.1.1.1", "dev-a");
         sightings.note("roommate", "1.1.1.1", "dev-b");
-        return new BanService(new BanBook(store), sightings, autoBan, line -> {});
+        return new BanService(new BanBook(store), sightings, autoBan, (key, detail) -> {});
     }
 
     private static TreeSet<String> keys(String file) throws Exception {

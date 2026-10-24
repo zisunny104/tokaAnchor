@@ -7,10 +7,12 @@ import cn.nukkit.plugin.PluginBase;
 import dev.toka.anchor.ban.BanBook;
 import dev.toka.anchor.ban.BanService;
 import dev.toka.anchor.command.AnchorCommand;
+import dev.toka.anchor.command.BanActions;
 import dev.toka.anchor.command.BanCommand;
 import dev.toka.anchor.command.RunCommand;
 import dev.toka.anchor.link.Sightings;
 import dev.toka.anchor.listener.GateListener;
+import dev.toka.anchor.upkeep.Access;
 import dev.toka.anchor.upkeep.Cleaner;
 import dev.toka.anchor.upkeep.Maintenance;
 import dev.toka.anchor.upkeep.Readable;
@@ -24,6 +26,7 @@ import java.nio.file.Path;
 import java.time.LocalTime;
 import java.time.ZoneId;
 import java.util.ArrayList;
+import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -44,6 +47,8 @@ public final class Main extends PluginBase {
     private Cleaner cleaner;
     private dev.toka.anchor.upkeep.CleanCountdown cleanCountdown;
     private Maintenance maintenance;
+    private dev.toka.anchor.upkeep.Access access;
+    private cn.nukkit.scheduler.TaskHandler cleanTask;
     private dev.toka.anchor.upkeep.Afk afk;
     private dev.toka.anchor.upkeep.ModeKeeper modes;
     private final List<Command> commands = new ArrayList<>();
@@ -61,34 +66,86 @@ public final class Main extends PluginBase {
             Sightings sightings;
             try { sightings = new Sightings(store, config.getInt("link.keep", 10)); }
             catch (Exception | LinkageError unreadable) {
-                getLogger().error("登入位址與裝置的紀錄讀不出來；封禁照常運作，但暫時不辨識關聯帳號，也不會覆寫該紀錄。", unreadable);
+                getLogger().error(text(null, "log.sightingsUnreadable"), unreadable);
                 sightings = Sightings.unavailable(config.getInt("link.keep", 10));
             }
-            bans = new BanService(new BanBook(store), sightings, config.getString("link.auto-ban", "direct").equalsIgnoreCase("direct"), getLogger()::warning);
-            maintenance = new Maintenance(getServer(), new HashSet<>(config.getStringList("maintenance.allow")), config.getBoolean("maintenance.enabled", false),
-                    config.getString("maintenance.message", ""));
-            cleaner = new Cleaner(getServer(), config.getBoolean("clean.items", true), config.getBoolean("clean.creatures", true),
-                    config.getBoolean("clean.projectiles", true), config.getBoolean("clean.orbs", true));
-            cleanCountdown = new dev.toka.anchor.upkeep.CleanCountdown(this, config.getInt("clean.countdown-seconds", 10));
-            getServer().getPluginManager().registerEvents(new GateListener(this, bans, maintenance, new dev.toka.anchor.upkeep.Access(getServer(), config.getString("access.mode", "open").equalsIgnoreCase("linked"), new HashSet<>(config.getStringList("access.allow")))), this);
-            afk = new dev.toka.anchor.upkeep.Afk(System::currentTimeMillis, config.getInt("afk.seconds", 300));
-            getServer().getPluginManager().registerEvents(afk, this);
+            bans = new BanService(new BanBook(store), sightings, autoBan(config), (key, detail) -> getLogger().warning(text(null, "log." + key, detail)));
+            getServer().getPluginManager().registerEvents(new GateListener(this, bans), this);
             modes = new dev.toka.anchor.upkeep.ModeKeeper(new java.io.File(getDataFolder(), "modes.yml"));
             getServer().getPluginManager().registerEvents(modes, this);
-            afk.touchAll(getServer().getOnlinePlayers().values());
-            try { startRestarter(config); } catch (Exception | LinkageError failure) { getLogger().error("排程重啟無法啟動，其餘功能照常。", failure); }
-            try { startCleaning(config); } catch (Exception | LinkageError failure) { getLogger().error("定時清理無法啟動，其餘功能照常。", failure); }
-            register(new BanCommand(this, bans, BanCommand.Kind.BAN, "b"));
-            register(new BanCommand(this, bans, BanCommand.Kind.LIFT, "ub"));
-            register(new BanCommand(this, bans, BanCommand.Kind.LIST, "blist"));
-            register(new BanCommand(this, bans, BanCommand.Kind.LINK, "blink"));
-            register(new AnchorCommand(this));
-            register(new RunCommand(this));
-            register(new dev.toka.anchor.command.CleanCommand(this));
+            build(config);
+            var actions = new BanActions(this, bans);
+            Map<BanCommand.Kind, BanCommand> banCommands = new EnumMap<>(BanCommand.Kind.class);
+            banCommands.put(BanCommand.Kind.BAN, new BanCommand(this, bans, actions, BanCommand.Kind.BAN, "b"));
+            banCommands.put(BanCommand.Kind.LIFT, new BanCommand(this, bans, actions, BanCommand.Kind.LIFT, "ub"));
+            banCommands.put(BanCommand.Kind.LIST, new BanCommand(this, bans, actions, BanCommand.Kind.LIST, "blist"));
+            banCommands.put(BanCommand.Kind.LINK, new BanCommand(this, bans, actions, BanCommand.Kind.LINK, "blink"));
+            // /blist and /blink are only /anchor list and /anchor link: fewer names in every player's command list
+            register(banCommands.get(BanCommand.Kind.BAN), "ban");
+            register(banCommands.get(BanCommand.Kind.LIFT), "unban");
+            var anchorCommand = new AnchorCommand(this, bans, actions, banCommands);
+            getServer().getPluginManager().registerEvents(anchorCommand.ui(), this);
+            register(anchorCommand, null);
+            register(new RunCommand(this), "run");
+            register(new dev.toka.anchor.command.CleanCommand(this), "clean");
             instance = this;
         } catch (Exception | LinkageError error) {
-            getLogger().error("tokaAnchor 未能載入；為避免以空資料取代封禁名單，插件將停用。", error);
+            getLogger().error(text(null, "log.loadFailed"), error);
             getServer().getPluginManager().disablePlugin(this);
+        }
+    }
+
+    private static boolean autoBan(cn.nukkit.utils.Config config) { return config.getString("link.auto-ban", "direct").equalsIgnoreCase("direct"); }
+
+    /** Builds everything that is derived from config.yml; a reload runs it again after dropping the old pieces. */
+    private void build(cn.nukkit.utils.Config config) {
+        maintenance = new Maintenance(getServer(), new HashSet<>(config.getStringList("maintenance.allow")), config.getBoolean("maintenance.enabled", false),
+                config.getString("maintenance.message", ""));
+        access = new Access(getServer(), config.getString("access.mode", "open").equalsIgnoreCase("linked"), new HashSet<>(config.getStringList("access.allow")));
+        cleaner = new Cleaner(getServer(), config.getBoolean("clean.items", true), config.getBoolean("clean.creatures", true),
+                config.getBoolean("clean.projectiles", true), config.getBoolean("clean.orbs", true));
+        cleanCountdown = new dev.toka.anchor.upkeep.CleanCountdown(this, config.getInt("clean.countdown-seconds", 10));
+        afk = new dev.toka.anchor.upkeep.Afk(System::currentTimeMillis, config.getInt("afk.seconds", 300));
+        getServer().getPluginManager().registerEvents(afk, this);
+        afk.touchAll(getServer().getOnlinePlayers().values());
+        try { startRestarter(config); } catch (Exception | LinkageError failure) { getLogger().error(text(null, "log.restartFailed"), failure); }
+        try { startCleaning(config); } catch (Exception | LinkageError failure) { getLogger().error(text(null, "log.cleanStartFailed"), failure); }
+    }
+
+    /** Re-reads config.yml and the texts and rebuilds the pieces that captured them; bans and commands stay. */
+    public void reload() {
+        reloadConfig();
+        languages.clear();
+        if (restarter != null) { restarter.shutdown(); restarter = null; }
+        if (cleanTask != null) { cleanTask.cancel(); cleanTask = null; }
+        if (cleanCountdown != null) cleanCountdown.shutdown();
+        if (afk != null) cn.nukkit.event.HandlerList.unregisterAll(afk);
+        bans.autoBan(autoBan(getConfig()));
+        build(getConfig());
+    }
+
+    /** Logs a line from the language file (log.*) to the console. */
+    public void log(String key, Object... args) { getLogger().info(text(null, "log." + key, args)); }
+
+    public Access access() { return access; }
+
+    /** Switches the login rule now and writes it to config.yml so it survives a restart. */
+    public void setAccessMode(boolean linked) throws java.io.IOException {
+        ConfigEdit.set(new java.io.File(getDataFolder(), "config.yml").toPath(), "access", "mode", linked ? "linked" : "open");
+        access.linkedOnly(linked);
+    }
+
+    /** Changes which kinds the clean-up removes and keeps the choice in config.yml. */
+    public void setCleanKinds(boolean items, boolean creatures, boolean projectiles, boolean orbs) {
+        cleaner.kinds(items, creatures, projectiles, orbs);
+        var file = new java.io.File(getDataFolder(), "config.yml").toPath();
+        try {
+            ConfigEdit.set(file, "clean", "items", String.valueOf(items));
+            ConfigEdit.set(file, "clean", "creatures", String.valueOf(creatures));
+            ConfigEdit.set(file, "clean", "projectiles", String.valueOf(projectiles));
+            ConfigEdit.set(file, "clean", "orbs", String.valueOf(orbs));
+        } catch (java.io.IOException failure) {
+            getLogger().warning(text(null, "log.configWriteFailed", failure.getClass().getSimpleName()));
         }
     }
 
@@ -96,13 +153,13 @@ public final class Main extends PluginBase {
         if (!config.getBoolean("restart.enabled", true)) return;
         List<String> rejected = new ArrayList<>();
         List<LocalTime> times = RestartPlan.parse(config.getStringList("restart.times"), rejected);
-        if (!rejected.isEmpty()) getLogger().warning("restart.times 有無法讀取的時間（要寫成 HH:mm），已略過：" + rejected);
+        if (!rejected.isEmpty()) getLogger().warning(text(null, "log.restartTimesRejected", rejected));
         ZoneId chosen;
         try {
             String id = config.getString("restart.zone", "");
             chosen = id.isBlank() ? ZoneId.systemDefault() : ZoneId.of(id);
         } catch (java.time.DateTimeException bad) {
-            getLogger().warning("restart.zone 不是有效的時區，改用系統時區。");
+            getLogger().warning(text(null, "log.restartZoneBad"));
             chosen = ZoneId.systemDefault();
         }
         ZoneId zone = chosen;
@@ -113,30 +170,39 @@ public final class Main extends PluginBase {
             long left = RestartPlan.secondsLeft(t, java.time.Instant.now());
             getLogger().info(text(null, "restart.next", restartTime(t, zone)));
             getLogger().info(text(null, "restart.in", duration(null, left), Readable.number(left)));
-        }, () -> getLogger().info("沒有設定重啟時間，只能手動 /anchor restart。"));
+        }, () -> getLogger().info(text(null, "log.restartNone")));
     }
 
     private void startCleaning(cn.nukkit.utils.Config config) {
         int minutes = config.getInt("clean.interval-minutes", 0);
         if (minutes <= 0) return;
         int ticks = (int) Math.min(Integer.MAX_VALUE, minutes * 1200L);
-        getServer().getScheduler().scheduleDelayedRepeatingTask(this, () -> {
+        cleanTask = getServer().getScheduler().scheduleDelayedRepeatingTask(this, () -> {
             try { cleanCountdown.start(cleanCountdown.minimum()); }
             catch (RuntimeException failure) { getLogger().warning(text(null, "log.cleanFailed", failure.getClass().getSimpleName())); }
         }, ticks, ticks);
     }
 
-    /** Registers a command unless another plugin already owns the name, and says so instead of taking it. */
-    private void register(Command command) {
+    /**
+     * Registers a command unless another plugin already owns the name, and says so instead of taking it.
+     *
+     * @param fallback the /anchor word that does the same, named in the console line when the name is taken; null for none
+     */
+    private void register(Command command, String fallback) {
         var map = getServer().getCommandMap();
         var existing = map.getCommand(command.getName());
-        if (existing != null) { getLogger().warning("/" + command.getName() + " 已由其他插件註冊；請先停用該入口再重啟。此次不註冊。"); return; }
+        if (existing != null) {
+            String owner = existing instanceof cn.nukkit.command.PluginCommand<?> pluginCommand ? pluginCommand.getPlugin().getName() : existing.getClass().getSimpleName();
+            getLogger().warning(text(null, "log.commandTaken", command.getName(), owner, fallback == null ? "help" : fallback));
+            return;
+        }
         if (map.register("tokaAnchor", command) && map.getCommand(command.getName()) == command) commands.add(command);
-        else getLogger().error("無法註冊指令 /" + command.getName() + "；請檢查指令衝突。");
+        else getLogger().error(text(null, "log.commandFailed", command.getName()));
     }
 
     @Override public void onDisable() {
         if (cleanCountdown != null) cleanCountdown.shutdown();
+        if (restarter != null) restarter.shutdown();
         if (modes != null) modes.rememberAll(getServer().getOnlinePlayers().values());
         var map = getServer().getCommandMap();
         for (Command command : commands) {
@@ -146,7 +212,7 @@ public final class Main extends PluginBase {
         commands.clear();
         if (instance == this) instance = null;
         if (bans != null) bans.close();
-        if (store != null) try { store.close(); } catch (java.io.IOException error) { getLogger().error("關閉儲存庫失敗。", error); }
+        if (store != null) try { store.close(); } catch (java.io.IOException error) { getLogger().error(text(null, "log.storageCloseFailed"), error); }
     }
 
     public BanService bans() { return bans; }
@@ -181,10 +247,10 @@ public final class Main extends PluginBase {
         return Readable.span(seconds, (unit, count) -> text(sender, "time." + unit, Readable.number(count)));
     }
 
-    /** Tells every player in their own language, and the console in the configured one. */
+    /** Tells every player in their own language; the console gets console.* instead, without the player tag. */
     public void broadcast(String key, Object... args) {
         for (Player player : getServer().getOnlinePlayers().values()) player.sendMessage(text(player, key, args));
-        getLogger().info(text(null, key, args));
+        getLogger().info(text(null, "console." + key, args));
     }
 
     /** A line at the top of every player's screen (tokaDisplay), in their language; without tokaDisplay it goes to the action bar. */

@@ -25,6 +25,7 @@ public final class Restarter {
     private final int transferPort;
     private Instant target;
     private long announced = -1;
+    private cn.nukkit.scheduler.TaskHandler task;
 
     public Restarter(Main plugin, List<LocalTime> times, ZoneId zone, Set<Integer> steps, String transferAddress, int transferPort) {
         this.plugin = plugin;
@@ -37,9 +38,15 @@ public final class Restarter {
     }
 
     public void start() {
-        plugin.getServer().getScheduler().scheduleRepeatingTask(plugin, new Task() {
+        task = plugin.getServer().getScheduler().scheduleRepeatingTask(plugin, new Task() {
             @Override public void onRun(int tick) { tick(); }
         }, 20);
+    }
+
+    /** Ends the checking; a reload builds a new Restarter from the new settings. */
+    public void shutdown() {
+        if (task != null) task.cancel();
+        task = null;
     }
 
     public ZoneId zone() { return zone; }
@@ -73,7 +80,7 @@ public final class Restarter {
             return;
         }
         target = null;
-        plugin.getLogger().info("依排程重啟伺服器。");
+        plugin.log("scheduledRestart");
         plugin.broadcast("restart.now");
         // Stop on the next tick so the last message is sent first.
         plugin.getServer().getScheduler().scheduleDelayedTask(plugin, this::stop, 20);

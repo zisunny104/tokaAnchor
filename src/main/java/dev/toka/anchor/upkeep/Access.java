@@ -15,7 +15,7 @@ import java.util.concurrent.TimeUnit;
 public final class Access {
     public static final String PERMISSION = "tokaanchor.enter";
     private final Server server;
-    private final boolean linkedOnly;
+    private volatile boolean linkedOnly;
     private final Set<String> allowed;
 
     public Access(Server server, boolean linkedOnly, Set<String> allowedNames) {
@@ -25,6 +25,9 @@ public final class Access {
     }
 
     public boolean restricted() { return linkedOnly; }
+
+    /** Switches the rule while the server runs; the allow list and the permission stay as they are. */
+    public void linkedOnly(boolean linkedOnly) { this.linkedOnly = linkedOnly; }
 
     /** Whether this player may log in. Without an answer from LuckPerms only operators and listed names pass. */
     public boolean admits(UUID id, String name) {

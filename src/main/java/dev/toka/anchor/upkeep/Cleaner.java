@@ -19,10 +19,26 @@ public final class Cleaner {
     }
 
     private final Server server;
-    private final boolean items, creatures, projectiles, orbs;
+    private volatile boolean items, creatures, projectiles, orbs;
 
     public Cleaner(Server server, boolean items, boolean creatures, boolean projectiles, boolean orbs) {
         this.server = server;
+        this.items = items;
+        this.creatures = creatures;
+        this.projectiles = projectiles;
+        this.orbs = orbs;
+    }
+
+    public boolean items() { return items; }
+
+    public boolean creatures() { return creatures; }
+
+    public boolean projectiles() { return projectiles; }
+
+    public boolean orbs() { return orbs; }
+
+    /** Changes which kinds the next clean-up removes. */
+    public void kinds(boolean items, boolean creatures, boolean projectiles, boolean orbs) {
         this.items = items;
         this.creatures = creatures;
         this.projectiles = projectiles;

@@ -11,7 +11,7 @@ import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.function.Consumer;
+import java.util.function.BiConsumer;
 
 /**
  * Bans, and the link between accounts of one person. Banning an account also bans the accounts that share both its device and
@@ -23,17 +23,22 @@ public final class BanService implements AutoCloseable {
 
     private final BanBook book;
     private final Sightings sightings;
-    private final boolean autoBan;
-    private final Consumer<String> warn;
+    private volatile boolean autoBan;
+    /** Receives a log key and the detail of the fault; the plugin turns it into a line of the console. */
+    private final BiConsumer<String, Object> warn;
     private final AtomicBoolean saving = new AtomicBoolean();
     private final ExecutorService worker = Executors.newSingleThreadExecutor(r -> { Thread t = new Thread(r, "tokaAnchor-save"); t.setDaemon(true); return t; });
 
-    public BanService(BanBook book, Sightings sightings, boolean autoBan, Consumer<String> warn) {
+    public BanService(BanBook book, Sightings sightings, boolean autoBan, BiConsumer<String, Object> warn) {
         this.book = book;
         this.sightings = sightings;
         this.autoBan = autoBan;
         this.warn = warn;
     }
+
+    public boolean autoBan() { return autoBan; }
+
+    public void autoBan(boolean autoBan) { this.autoBan = autoBan; }
 
     public BanBook book() { return book; }
 
@@ -41,6 +46,11 @@ public final class BanService implements AutoCloseable {
 
     /** @param lengthMillis null for permanent */
     public Outcome ban(String name, String reason, String source, Long lengthMillis, long now) throws IOException {
+        return ban(name, reason, source, lengthMillis, now, autoBan);
+    }
+
+    /** @param withLinked whether accounts with the same address and device are banned along */
+    public Outcome ban(String name, String reason, String source, Long lengthMillis, long now, boolean withLinked) throws IOException {
         Long expires = lengthMillis == null ? null : now + lengthMillis;
         List<Ban> added = new ArrayList<>();
         added.add(new Ban(name, reason, source, now, expires));
@@ -48,7 +58,7 @@ public final class BanService implements AutoCloseable {
         List<String> banned = new ArrayList<>(), possible = new ArrayList<>();
         banned.add(name);
         related.forEach((other, strength) -> {
-            if (strength == LinkFinder.Strength.DIRECT && autoBan) { banned.add(other); added.add(new Ban(other, name + " 關聯帳號", source, now, expires, name)); }
+            if (strength == LinkFinder.Strength.DIRECT && withLinked) { banned.add(other); added.add(new Ban(other, name + " 關聯帳號", source, now, expires, name)); }
             else possible.add(other);
         });
         book.add(added, now);
@@ -66,12 +76,12 @@ public final class BanService implements AutoCloseable {
                 if (theirs.isEmpty()) continue;
                 Ban copy = new Ban(name, other + " 關聯帳號", "Anchor", now, theirs.get().expires(), other);
                 // The login is refused even when the copy cannot be saved; it is simply made again at the next attempt.
-                try { book.add(List.of(copy), now); } catch (IOException failure) { warn.accept("無法儲存關聯帳號的封禁：" + failure); }
+                try { book.add(List.of(copy), now); } catch (IOException failure) { warn.accept("linkedBanFailed", failure); }
                 return Optional.of(copy);
             }
             return Optional.empty();
         } catch (RuntimeException fault) {
-            warn.accept("登入封禁檢查出錯，這次放行：" + fault);
+            warn.accept("loginCheckFailed", fault);
             return Optional.empty();
         }
     }
@@ -80,7 +90,7 @@ public final class BanService implements AutoCloseable {
         if (!saving.compareAndSet(false, true)) return;
         worker.execute(() -> {
             saving.set(false);
-            try { sightings.save(); } catch (IOException failure) { warn.accept("無法儲存登入紀錄：" + failure); }
+            try { sightings.save(); } catch (IOException failure) { warn.accept("sightingsSaveFailed", failure); }
         });
     }
 
@@ -88,6 +98,6 @@ public final class BanService implements AutoCloseable {
 
     @Override public void close() {
         worker.shutdown();
-        try { sightings.save(); } catch (IOException failure) { warn.accept("無法儲存登入紀錄：" + failure); }
+        try { sightings.save(); } catch (IOException failure) { warn.accept("sightingsSaveFailed", failure); }
     }
 }

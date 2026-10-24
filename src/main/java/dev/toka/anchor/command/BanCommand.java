@@ -24,16 +24,20 @@ public final class BanCommand extends Command {
     private final Main plugin;
     private final BanService bans;
     private final Kind kind;
+    private final BanActions actions;
 
-    public BanCommand(Main plugin, BanService bans, Kind kind, String name) {
+    public BanCommand(Main plugin, BanService bans, BanActions actions, Kind kind, String name) {
         super(name, plugin.text(null, "desc." + kind.name().toLowerCase()), "/" + name);
         this.plugin = plugin;
         this.bans = bans;
         this.kind = kind;
+        this.actions = actions;
         setPermission("tokaanchor.ban");
         getCommandParameters().clear();
         switch (kind) {
             case BAN -> {
+                addCommandParameters("preset", new CommandParameter[]{CommandParameter.newType("player", CommandParamType.TARGET), CommandParameter.newEnum("length", Span.PRESETS),
+                        CommandParameter.newType("reason", CommandParamType.MESSAGE)});
                 addCommandParameters("timed", new CommandParameter[]{CommandParameter.newType("player", CommandParamType.TARGET), CommandParameter.newType("length", CommandParamType.STRING),
                         CommandParameter.newType("reason", CommandParamType.MESSAGE)});
                 addCommandParameters("forever", new CommandParameter[]{CommandParameter.newType("player", CommandParamType.TARGET), CommandParameter.newType("reason", CommandParamType.MESSAGE)});
@@ -67,24 +71,12 @@ public final class BanCommand extends Command {
         int from = length == null ? 1 : 2;
         if (args.length <= from) throw new IllegalArgumentException("USAGE");
         String reason = String.join(" ", Arrays.copyOfRange(args, from, args.length));
-        BanService.Outcome outcome = bans.ban(args[0], reason, sender.getName(), length == null || length < 0 ? null : length, System.currentTimeMillis());
-        plugin.getLogger().info("封禁：" + sender.getName() + " 封禁 " + outcome.banned() + "，原因 " + reason);
-        send(sender, "ban.done", args[0], reason);
-        if (outcome.banned().size() > 1) send(sender, "ban.linked", String.join("、", outcome.banned().subList(1, outcome.banned().size())));
-        if (!outcome.possible().isEmpty()) send(sender, "ban.maybe", String.join("、", outcome.possible()));
-        for (String banned : outcome.banned()) {
-            var online = plugin.getServer().getPlayerExact(banned);
-            if (online != null) online.kick(plugin.text(online, "ban.kicked", reason), false);
-        }
+        actions.ban(sender, args[0], reason, length == null || length < 0 ? null : length, bans.autoBan());
     }
 
     private void lift(CommandSender sender, String[] args) throws IOException {
         if (args.length < 1) throw new IllegalArgumentException("USAGE");
-        List<String> lifted = bans.book().removeWithLinked(args[0], System.currentTimeMillis());
-        if (lifted.isEmpty()) { send(sender, "ban.none", args[0]); return; }
-        plugin.getLogger().info("解封：" + sender.getName() + " 解除 " + lifted);
-        send(sender, "ban.lifted", args[0]);
-        if (lifted.size() > 1) send(sender, "ban.liftedLinked", String.join("、", lifted.subList(1, lifted.size())));
+        actions.lift(sender, args[0]);
     }
 
     private void list(CommandSender sender, String[] args) {

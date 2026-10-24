@@ -18,19 +18,17 @@ import java.util.Optional;
 public final class GateListener implements Listener {
     private final Main plugin;
     private final BanService bans;
-    private final Maintenance maintenance;
-    private final Access access;
-
-    public GateListener(Main plugin, BanService bans, Maintenance maintenance, Access access) {
+    public GateListener(Main plugin, BanService bans) {
         this.plugin = plugin;
         this.bans = bans;
-        this.maintenance = maintenance;
-        this.access = access;
     }
 
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onPreLogin(PlayerPreLoginEvent event) {
         Player player = event.getPlayer();
+        // Asked each time: a reload or /anchor access replaces these objects
+        Maintenance maintenance = plugin.maintenanceMode();
+        Access access = plugin.access();
         if (maintenance.on() && !maintenance.admits(player.getName())) {
             event.setKickMessage(plugin.text(null, "maintenance.kick", maintenance.message()));
             event.setCancelled();

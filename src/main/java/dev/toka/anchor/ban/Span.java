@@ -4,6 +4,9 @@ import java.util.Locale;
 
 /** Ban lengths such as 30m, 12h, 7d, 2w; "perm" (or "permanent") means no end. */
 public final class Span {
+    /** The lengths offered in Tab completion and in the ban window. */
+    public static final String[] PRESETS = {"30m", "12h", "7d", "2w", "perm"};
+
     private Span() {}
 
     /** Milliseconds, or -1 for permanent; null when the text is not a length at all. */
