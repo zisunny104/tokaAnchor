@@ -1,6 +1,6 @@
 name: tokaAnchor
 main: dev.toka.anchor.Main
-version: "0.2.7"
+version: "0.2.8"
 api: ["1.0.4"]
 load: POSTWORLD
 permissions:
