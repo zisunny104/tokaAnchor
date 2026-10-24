@@ -49,3 +49,9 @@ maintenance:
   enabled: false
   message: "伺服器維護中，請稍後再來。"
   allow: []
+
+# 玩家輸入 / 時，客戶端列出的指令清單。aliases 的簡稱與全稱會一起塞滿畫面：hide-aliases 為 true 時只列主名稱，簡稱仍然可以輸入使用。
+# hide 列出完全不顯示在清單、但仍可輸入使用的指令名稱（例如簡短的管理指令、舊習慣的指令）。
+commands:
+  hide-aliases: true
+  hide: [b, ub, blist, blink, c, bal, money, topmoney, seemoney, givemoney, takemoney, setmoney]

@@ -80,9 +80,13 @@ public final class Main extends PluginBase {
             banCommands.put(BanCommand.Kind.LIFT, new BanCommand(this, bans, actions, BanCommand.Kind.LIFT, "ub"));
             banCommands.put(BanCommand.Kind.LIST, new BanCommand(this, bans, actions, BanCommand.Kind.LIST, "blist"));
             banCommands.put(BanCommand.Kind.LINK, new BanCommand(this, bans, actions, BanCommand.Kind.LINK, "blink"));
-            // /blist and /blink are only /anchor list and /anchor link: fewer names in every player's command list
             register(banCommands.get(BanCommand.Kind.BAN), "ban");
             register(banCommands.get(BanCommand.Kind.LIFT), "unban");
+            register(banCommands.get(BanCommand.Kind.LIST), "list");
+            register(banCommands.get(BanCommand.Kind.LINK), "link");
+            getServer().getPluginManager().registerEvents(new dev.toka.anchor.upkeep.CommandView(config.getBoolean("commands.hide-aliases", true),
+                    new HashSet<>(config.exists("commands.hide") ? config.getStringList("commands.hide")
+                            : List.of("b", "ub", "blist", "blink", "c", "bal", "money", "topmoney", "seemoney", "givemoney", "takemoney", "setmoney"))), this);
             var anchorCommand = new AnchorCommand(this, bans, actions, banCommands);
             getServer().getPluginManager().registerEvents(anchorCommand.ui(), this);
             register(anchorCommand, null);
