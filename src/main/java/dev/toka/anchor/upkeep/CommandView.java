@@ -6,7 +6,10 @@ import cn.nukkit.event.EventPriority;
 import cn.nukkit.event.Listener;
 import cn.nukkit.event.server.DataPacketSendEvent;
 import cn.nukkit.network.protocol.AvailableCommandsPacket;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Locale;
 import java.util.Set;
 
@@ -27,11 +30,44 @@ public final class CommandView implements Listener {
     @EventHandler(priority = EventPriority.HIGHEST) public void onSend(DataPacketSendEvent event) {
         if (!(event.getPacket() instanceof AvailableCommandsPacket packet) || packet.commands == null) return;
         hidden.forEach(packet.commands::remove);
+        uniqueEnumNames(packet);
         lowerCaseEnums(packet);
         if (!hideAliases) return;
         packet.commands.forEach((name, versions) -> versions.versions.forEach(data -> {
             if (data.aliases != null) data.aliases = new CommandEnum(data.aliases.getName(), List.of(name));
         }));
+    }
+
+    /**
+     * The client knows an option list by its name. Nukkit names the list of every {@code newEnum("action", values)} "actionEnums", so
+     * two sub-commands (or two plugins) with different words under the same name overwrite each other on the client and the words stop
+     * completing. A name that already stands for a different list of words gets a short suffix made from the words, the same list always the same name.
+     */
+    private static void uniqueEnumNames(AvailableCommandsPacket packet) {
+        Map<String, List<String>> owner = new HashMap<>();
+        Map<String, CommandEnum> renamed = new HashMap<>();
+        packet.commands.values().forEach(versions -> versions.versions.forEach(data -> {
+            if (data.aliases != null) data.aliases = unique(data.aliases, owner, renamed);
+            data.overloads.values().forEach(overload -> {
+                if (overload.input == null || overload.input.parameters == null) return;
+                for (var parameter : overload.input.parameters)
+                    if (parameter != null && parameter.enumData != null) parameter.enumData = unique(parameter.enumData, owner, renamed);
+            });
+        }));
+    }
+
+    static CommandEnum unique(CommandEnum list, Map<String, List<String>> owner, Map<String, CommandEnum> renamed) {
+        List<String> words = list.getValues();
+        List<String> first = owner.putIfAbsent(list.getName(), words);
+        if (first == null || first.equals(words)) return list;
+        String name = list.getName() + "_" + Integer.toHexString(words.hashCode());
+        CommandEnum known = renamed.get(name);
+        if (known != null && known.getValues().equals(words)) return known;
+        while (owner.containsKey(name) && !owner.get(name).equals(words)) name = name + "x";
+        owner.putIfAbsent(name, words);
+        CommandEnum fresh = new CommandEnum(name, new ArrayList<>(words));
+        renamed.put(name, fresh);
+        return fresh;
     }
 
     /**
