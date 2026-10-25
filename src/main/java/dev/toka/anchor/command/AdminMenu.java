@@ -121,8 +121,9 @@ final class AdminMenu {
 
     private void search(Player p, String query) {
         var window = new FormWindowCustom(t(p, "ui.search"));
+        window.addElement(new ElementHeader(t(p, "ui.search")));
         window.addElement(new ElementInput(t(p, "ui.searchLabel"), t(p, "ui.searchHint"), query));
-        ui.show(p, window, answer -> bans(p, ((FormResponseCustom) answer).getInputResponse(0).trim(), 0));
+        ui.show(p, window, answer -> bans(p, ((FormResponseCustom) answer).getInputResponse(1).trim(), 0));
     }
 
     private void detail(Player p, String name) {
@@ -205,13 +206,14 @@ final class AdminMenu {
                 + "\n" + t(p, "restart.in", plugin.duration(p, RestartPlan.secondsLeft(at, Instant.now())), Readable.number(RestartPlan.secondsLeft(at, Instant.now()))))
                 .orElse(t(p, "restart.none"));
         var window = new FormWindowCustom(t(p, "ui.restart.title"));
+        window.addElement(new ElementHeader(t(p, "ui.restart.title")));
         window.addElement(new ElementLabel(next));
         window.addElement(new ElementDropdown(t(p, "ui.restart.action"), List.of(t(p, "ui.restart.plan"), t(p, "ui.restart.cancel"))));
         window.addElement(new ElementSlider(t(p, "ui.restart.minutes"), 1, 120, 1, 5));
         ui.show(p, window, answer -> {
             var response = (FormResponseCustom) answer;
-            boolean plan = response.getDropdownResponse(1).getElementID() == 0;
-            int minutes = (int) response.getSliderResponse(2);
+            boolean plan = response.getDropdownResponse(2).getElementID() == 0;
+            int minutes = (int) response.getSliderResponse(3);
             confirm(p, plan ? t(p, "ui.restart.confirmPlan", minutes) : t(p, "ui.restart.confirmCancel"), () -> {
                 command.restart(p, plan ? new String[]{"restart", String.valueOf(minutes * 60L)} : new String[]{"restart", "cancel"});
                 open(p);
@@ -247,12 +249,13 @@ final class AdminMenu {
         if (!may(p, "tokaanchor.admin")) return;
         var mode = plugin.maintenanceMode();
         var window = new FormWindowCustom(t(p, "ui.maint.title"));
+        window.addElement(new ElementHeader(t(p, "ui.maint.title")));
         window.addElement(new ElementToggle(t(p, "ui.maint.on"), mode.on()));
         window.addElement(new ElementInput(t(p, "ui.maint.message"), "", mode.message()));
         ui.show(p, window, answer -> {
             var response = (FormResponseCustom) answer;
-            boolean on = response.getToggleResponse(0);
-            String message = response.getInputResponse(1).trim();
+            boolean on = response.getToggleResponse(1);
+            String message = response.getInputResponse(2).trim();
             confirm(p, t(p, on ? "ui.maint.confirmOn" : "ui.maint.confirmOff"), () -> {
                 command.maintenance(p, message.isEmpty() ? new String[]{"maintenance", on ? "on" : "off"} : new String[]{"maintenance", on ? "on" : "off", message});
                 open(p);
@@ -265,10 +268,11 @@ final class AdminMenu {
     private void access(Player p) {
         if (!may(p, "tokaanchor.admin")) return;
         var window = new FormWindowCustom(t(p, "ui.access.title"));
+        window.addElement(new ElementHeader(t(p, "ui.access.title")));
         window.addElement(new ElementDropdown(t(p, "ui.access.mode"), List.of(t(p, "ui.access.open"), t(p, "ui.access.linked")), plugin.access().restricted() ? 1 : 0));
         window.addElement(new ElementLabel(t(p, "ui.access.warn")));
         ui.show(p, window, answer -> {
-            boolean linked = ((FormResponseCustom) answer).getDropdownResponse(0).getElementID() == 1;
+            boolean linked = ((FormResponseCustom) answer).getDropdownResponse(1).getElementID() == 1;
             if (linked == plugin.access().restricted()) { open(p); return; }
             if (linked) confirm(p, t(p, "ui.access.confirm"), () -> applyAccess(p, true), () -> access(p));
             else applyAccess(p, false);
