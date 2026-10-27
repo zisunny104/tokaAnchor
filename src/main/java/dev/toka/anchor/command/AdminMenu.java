@@ -142,7 +142,7 @@ final class AdminMenu {
         else {
             body.append(t(p, "ui.ban.linkedHead"));
             related.entrySet().stream().sorted(Map.Entry.comparingByKey())
-                    .forEach(e -> body.append('\n').append(e.getKey()).append("　").append(t(p, "link." + e.getValue().name().toLowerCase())));
+                    .forEach(e -> body.append('\n').append(e.getKey()).append(" ").append(t(p, "link." + e.getValue().name().toLowerCase())));
         }
         var window = new FormWindowSimple(ban.name(), body.toString());
         window.addButton(Ui.button(t(p, "ui.back"), null));
