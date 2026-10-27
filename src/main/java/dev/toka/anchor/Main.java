@@ -51,6 +51,9 @@ public final class Main extends PluginBase {
     private cn.nukkit.scheduler.TaskHandler cleanTask;
     private dev.toka.anchor.upkeep.Afk afk;
     private dev.toka.anchor.upkeep.ModeKeeper modes;
+    private dev.toka.anchor.run.PendingRuns pendingRuns;
+    private dev.toka.anchor.listener.RunQueueListener runQueue;
+    private volatile java.lang.reflect.Method profileLookup;
     private final List<Command> commands = new ArrayList<>();
     private final Map<String, Messages> languages = new HashMap<>();
 
@@ -69,6 +72,14 @@ public final class Main extends PluginBase {
                 getLogger().error(text(null, "log.sightingsUnreadable"), unreadable);
                 sightings = Sightings.unavailable(config.getInt("link.keep", 10));
             }
+            var limits = queueLimits(config);
+            try { pendingRuns = new dev.toka.anchor.run.PendingRuns(store, limits, System.currentTimeMillis(), failure -> getLogger().warning(text(null, "log.pendingSaveFailed", failure.getClass().getSimpleName()))); }
+            catch (Exception | LinkageError unreadable) {
+                getLogger().error(text(null, "log.pendingUnreadable"), unreadable);
+                pendingRuns = dev.toka.anchor.run.PendingRuns.unavailable(limits);
+            }
+            runQueue = new dev.toka.anchor.listener.RunQueueListener(this, pendingRuns);
+            getServer().getPluginManager().registerEvents(runQueue, this);
             bans = new BanService(new BanBook(store), sightings, autoBan(config), (key, detail) -> getLogger().warning(text(null, "log." + key, detail)));
             getServer().getPluginManager().registerEvents(new GateListener(this, bans), this);
             modes = new dev.toka.anchor.upkeep.ModeKeeper(new java.io.File(getDataFolder(), "modes.yml"));
@@ -101,8 +112,35 @@ public final class Main extends PluginBase {
 
     private static boolean autoBan(cn.nukkit.utils.Config config) { return config.getString("link.auto-ban", "direct").equalsIgnoreCase("direct"); }
 
+    private static dev.toka.anchor.run.PendingRuns.Limits queueLimits(cn.nukkit.utils.Config config) {
+        return dev.toka.anchor.run.PendingRuns.Limits.ofDays(config.getInt("run.queue.max-per-player", 10), config.getInt("run.queue.max-length", 256), config.getInt("run.queue.max-age-days", 30));
+    }
+
+    /** Commands waiting for offline players. */
+    public dev.toka.anchor.run.PendingRuns pendingRuns() { return pendingRuns; }
+
+    /**
+     * The account with this name according to tokaProfiles (a soft link, by reflection), or null when the name is unknown or
+     * tokaProfiles is not there.
+     */
+    public java.util.UUID knownPlayer(String name) {
+        var profiles = getServer().getPluginManager().getPlugin("tokaProfiles");
+        if (profiles == null || !profiles.isEnabled()) { profileLookup = null; return null; }
+        try {
+            java.lang.reflect.Method method = profileLookup;
+            if (method == null || method.getDeclaringClass().getClassLoader() != profiles.getClass().getClassLoader()) {
+                method = Class.forName("dev.toka.profiles.Main", true, profiles.getClass().getClassLoader()).getMethod("findPlayerByName", String.class);
+                profileLookup = method;
+            }
+            return (java.util.UUID) method.invoke(null, name);
+        } catch (ReflectiveOperationException | LinkageError | ClassCastException older) {
+            return null;
+        }
+    }
+
     /** Builds everything that is derived from config.yml; a reload runs it again after dropping the old pieces. */
     private void build(cn.nukkit.utils.Config config) {
+        pendingRuns.limits(queueLimits(config));
         maintenance = new Maintenance(getServer(), new HashSet<>(config.getStringList("maintenance.allow")), config.getBoolean("maintenance.enabled", false),
                 config.getString("maintenance.message", ""));
         access = new Access(getServer(), config.getString("access.mode", "open").equalsIgnoreCase("linked"), new HashSet<>(config.getStringList("access.allow")));
@@ -215,6 +253,8 @@ public final class Main extends PluginBase {
         }
         commands.clear();
         if (instance == this) instance = null;
+        if (runQueue != null) runQueue.shutdown();
+        if (pendingRuns != null) pendingRuns.close();
         if (bans != null) bans.close();
         if (store != null) try { store.close(); } catch (java.io.IOException error) { getLogger().error(text(null, "log.storageCloseFailed"), error); }
     }

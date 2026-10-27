@@ -55,3 +55,15 @@ maintenance:
 commands:
   hide-aliases: true
   hide: [b, ub, blist, blink, c, bal, money, topmoney, seemoney, givemoney, takemoney, setmoney]
+
+# 以 /c 對「不在線但認得的玩家」下的指令會先排隊，等那位玩家下次登入時以他的身分執行（需要 tokaProfiles 才認得離線玩家）。
+run:
+  queue:
+    # 每位玩家最多同時排幾個指令，滿了就拒絕新的。
+    max-per-player: 10
+    # 單一指令的最大長度（字元），更長的會被拒絕。
+    max-length: 256
+    # 排隊超過幾天的指令視為過期，載入資料與該玩家登入時會丟掉。
+    max-age-days: 30
+    # 玩家登入後等幾個 tick 再執行排隊的指令（20 tick = 1 秒），讓玩家先完成進入世界。
+    join-delay-ticks: 10

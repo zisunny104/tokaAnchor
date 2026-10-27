@@ -6,6 +6,7 @@ import cn.nukkit.command.CommandSender;
 import cn.nukkit.command.data.CommandParamType;
 import cn.nukkit.command.data.CommandParameter;
 import dev.toka.anchor.Main;
+import dev.toka.anchor.run.PendingRuns;
 import dev.toka.anchor.upkeep.Readable;
 import dev.toka.anchor.upkeep.RestartPlan;
 import java.time.Instant;
@@ -44,6 +45,8 @@ public final class AnchorCommand extends Command {
         addCommandParameters("kill", new CommandParameter[]{CommandParameter.newEnum("action", new String[]{"kill"}), CommandParameter.newType("player", CommandParamType.TARGET)});
         addCommandParameters("run", new CommandParameter[]{CommandParameter.newEnum("action", new String[]{"run"}), CommandParameter.newType("player", CommandParamType.TARGET),
                 CommandParameter.newType("command", CommandParamType.RAWTEXT)});
+        addCommandParameters("runList", new CommandParameter[]{CommandParameter.newEnum("action", new String[]{"run"}), CommandParameter.newEnum("what", new String[]{"list"}), CommandParameter.newType("player", true, CommandParamType.TARGET)});
+        addCommandParameters("runCancel", new CommandParameter[]{CommandParameter.newEnum("action", new String[]{"run"}), CommandParameter.newEnum("what", new String[]{"cancel"}), CommandParameter.newType("player", CommandParamType.TARGET)});
         addCommandParameters("maintenance", new CommandParameter[]{CommandParameter.newEnum("action", new String[]{"maintenance"}),
                 CommandParameter.newEnum("state", new String[]{"on", "off"}), CommandParameter.newType("message", true, CommandParamType.MESSAGE)});
         this.banCommands = banCommands;
@@ -51,7 +54,7 @@ public final class AnchorCommand extends Command {
                 new HelpPages.Section("basics", null, List.of("helpCmd")),
                 new HelpPages.Section("ban", "tokaanchor.ban", List.of("b", "bTimed", "ub", "list", "status", "fallback")),
                 new HelpPages.Section("link", "tokaanchor.ban", List.of("link", "linkRule")),
-                new HelpPages.Section("upkeep", "tokaanchor.admin", List.of("restart", "restartStatus", "restartCancel", "clean", "maintenance", "kill", "run", "access", "reload")),
+                new HelpPages.Section("upkeep", "tokaanchor.admin", List.of("restart", "restartStatus", "restartCancel", "clean", "maintenance", "kill", "run", "runList", "runCancel", "access", "reload")),
                 new HelpPages.Section("settings", "tokaanchor.admin", List.of("accessCfg", "enterPerm", "keepmode", "cleanCfg", "afkCfg", "restartCfg", "maintCfg")),
                 new HelpPages.Section("perms", "tokaanchor.admin", List.of("permList"))), plugin::text);
         menu = new AdminMenu(plugin, bans, actions, this, help);
@@ -86,7 +89,13 @@ public final class AnchorCommand extends Command {
             case "restart" -> { if (admin(sender)) restart(sender, args); }
             case "clean" -> { if (admin(sender)) clean(sender, args); }
             case "kill" -> { if (admin(sender)) kill(sender, args); }
-            case "run" -> { if (admin(sender)) runAs(plugin, sender, Arrays.copyOfRange(args, 1, args.length)); }
+            case "run" -> {
+                if (!admin(sender)) break;
+                String[] rest = Arrays.copyOfRange(args, 1, args.length);
+                if (rest.length >= 1 && rest.length <= 2 && rest[0].equalsIgnoreCase("list")) runList(plugin, sender, rest.length > 1 ? rest[1] : null);
+                else if (rest.length == 2 && rest[0].equalsIgnoreCase("cancel")) runCancel(plugin, sender, rest[1]);
+                else runAs(plugin, sender, rest);
+            }
             case "maintenance" -> { if (admin(sender)) maintenance(sender, args); }
             default -> send(sender, "cmd.usage");
         }
@@ -139,12 +148,67 @@ public final class AnchorCommand extends Command {
     static void runAs(Main plugin, CommandSender sender, String[] args) {
         if (args.length < 2) { sender.sendMessage(plugin.text(sender, "run.usage")); return; }
         Player target = plugin.getServer().getPlayer(args[0]);
-        if (target == null) { sender.sendMessage(plugin.text(sender, "run.noPlayer")); return; }
         String command = String.join(" ", Arrays.copyOfRange(args, 1, args.length));
+        if (target == null) { queue(plugin, sender, args[0], command); return; }
         plugin.log("ranAs", sender.getName(), target.getName(), command);
         sender.sendMessage(plugin.text(sender, "run.done", target.getName(), command));
         plugin.getServer().dispatchCommand(target, command);
     }
+
+    /** The player is offline: keeps the command for their next login when they are known to tokaProfiles. */
+    private static void queue(Main plugin, CommandSender sender, String name, String command) {
+        java.util.UUID id = plugin.knownPlayer(name);
+        if (id == null) { sender.sendMessage(plugin.text(sender, "run.noPlayer")); return; }
+        long now = System.currentTimeMillis();
+        var added = plugin.pendingRuns().add(id, name, new PendingRuns.Entry(command, sender.getName(), now), now);
+        switch (added.result()) {
+            case TOO_LONG -> sender.sendMessage(plugin.text(sender, "run.tooLong", Readable.number(plugin.getConfig().getInt("run.queue.max-length", 256))));
+            case FULL -> sender.sendMessage(plugin.text(sender, "run.full", name, Readable.number(plugin.getConfig().getInt("run.queue.max-per-player", 10))));
+            case QUEUED -> {
+                plugin.log("queued", sender.getName(), name, command);
+                sender.sendMessage(plugin.text(sender, "run.queued", name, command, Readable.number(added.waiting())));
+            }
+        }
+    }
+
+    /** /anchor run list [player]: who has commands waiting, or one player's commands with their age. */
+    static void runList(Main plugin, CommandSender sender, String name) {
+        var all = plugin.pendingRuns().snapshot();
+        long now = System.currentTimeMillis();
+        if (name == null) {
+            if (all.isEmpty()) { sender.sendMessage(plugin.text(sender, "run.list.none")); return; }
+            sender.sendMessage(plugin.text(sender, "run.list.head", Readable.number(all.size())));
+            all.values().stream().sorted(java.util.Comparator.comparing(q -> q.name().toLowerCase(Locale.ROOT))).forEach(queue ->
+                    sender.sendMessage(plugin.text(sender, "run.list.row", queue.name(), Readable.number(queue.entries().size()), age(plugin, sender, queue.entries().get(0).at(), now))));
+            return;
+        }
+        java.util.UUID id = runTarget(plugin, name);
+        var queue = id == null ? null : all.get(id);
+        if (queue == null || queue.entries().isEmpty()) { sender.sendMessage(plugin.text(sender, "run.list.empty", name)); return; }
+        sender.sendMessage(plugin.text(sender, "run.list.player", queue.name(), Readable.number(queue.entries().size())));
+        int number = 1;
+        for (var entry : queue.entries())
+            sender.sendMessage(plugin.text(sender, "run.list.entry", number++, entry.command(), entry.by(), age(plugin, sender, entry.at(), now)));
+    }
+
+    /** /anchor run cancel &lt;player&gt;: drops everything waiting for that player. */
+    static void runCancel(Main plugin, CommandSender sender, String name) {
+        java.util.UUID id = runTarget(plugin, name);
+        int dropped = id == null ? 0 : plugin.pendingRuns().cancel(id);
+        if (dropped == 0) { sender.sendMessage(plugin.text(sender, "run.list.empty", name)); return; }
+        plugin.log("queueCancelled", sender.getName(), name, Readable.number(dropped));
+        sender.sendMessage(plugin.text(sender, "run.cancelled", name, Readable.number(dropped)));
+    }
+
+    /** The account a typed name means: one with a queue under that name, an online player, or one tokaProfiles knows. May be null. */
+    private static java.util.UUID runTarget(Main plugin, String name) {
+        var queued = plugin.pendingRuns().find(name);
+        if (queued.isPresent()) return queued.get();
+        Player online = plugin.getServer().getPlayerExact(name);
+        return online != null ? online.getUniqueId() : plugin.knownPlayer(name);
+    }
+
+    private static String age(Main plugin, CommandSender sender, long at, long now) { return plugin.duration(sender, Math.max(0, now - at) / 1000); }
 
     void clean(CommandSender sender, String[] args) {
         var countdown = plugin.cleanCountdown();
