@@ -37,7 +37,7 @@ import java.util.Map;
 final class AdminMenu {
     private static final int PAGE = 8;
     private static final String ICON_BANS = "textures/items/book_writable", ICON_NEW = "textures/ui/color_plus", ICON_RESTART = "textures/items/clock_item",
-            ICON_CLEAN = "textures/items/bucket_empty", ICON_MAINT = "textures/items/iron_pickaxe", ICON_ACCESS = "textures/items/key",
+            ICON_CLEAN = "textures/items/bucket_empty", ICON_MAINT = "textures/items/iron_pickaxe", ICON_ACCESS = "textures/blocks/trip_wire_source",
             ICON_HELP = "textures/items/map_filled", ICON_SEARCH = "textures/items/compass_item";
     private final Main plugin;
     private final BanService bans;
