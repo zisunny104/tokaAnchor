@@ -56,7 +56,7 @@ commands:
   hide-aliases: true
   hide: [b, ub, blist, blink, c, bal, money, topmoney, seemoney, givemoney, takemoney, setmoney]
 
-# 以 /c 對「不在線但認得的玩家」下的指令會先排隊，等那位玩家下次登入時以他的身分執行（需要 tokaProfiles 才認得離線玩家）。
+# 以 /c 對「不在線上但認得的玩家」下的指令會先排隊，等那位玩家下次登入時以他的身分執行（需要 tokaProfiles 才認得離線玩家）。
 run:
   queue:
     # 每位玩家最多同時排幾個指令，滿了就拒絕新的。
