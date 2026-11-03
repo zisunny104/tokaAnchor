@@ -10,11 +10,13 @@ import dev.toka.anchor.Main;
 public final class CleanCountdown {
     private final Main plugin;
     private final int minimum;
+    private final boolean gc;
     private int left = -1;
     private TaskHandler task;
 
-    public CleanCountdown(Main plugin, int minimumSeconds) {
+    public CleanCountdown(Main plugin, int minimumSeconds, boolean gc) {
         this.plugin = plugin;
+        this.gc = gc;
         this.minimum = Math.max(1, minimumSeconds);
     }
 
@@ -26,17 +28,24 @@ public final class CleanCountdown {
     public boolean start(int seconds) {
         if (running()) return false;
         left = Math.max(minimum, seconds);
-        plugin.broadcast("clean.started", plugin.duration(null, left));
+        plugin.getLogger().info(plugin.text(null, "console.clean.started", plugin.duration(null, left)));
         announce();
         task = plugin.getServer().getScheduler().scheduleRepeatingTask(plugin, this::tick, 20);
         return true;
+    }
+
+    /** The timed clean-up: counts first and does nothing when there is nothing to remove. */
+    public boolean startScheduled() {
+        if (running() || plugin.cleaner().count().total() == 0) return false;
+        return start(minimum);
     }
 
     /** Stops a countdown that is running; false when there is none. */
     public boolean cancel() {
         if (!running()) return false;
         stop();
-        plugin.broadcast("clean.cancelled");
+        plugin.getLogger().info(plugin.text(null, "console.clean.cancelled"));
+        plugin.topAdmins("clean.cancelled");
         return true;
     }
 
@@ -55,12 +64,17 @@ public final class CleanCountdown {
         if (left <= 0) {
             stop();
             var result = plugin.cleaner().clean();
-            plugin.broadcast("clean.done", result.items() + result.projectiles(), result.creatures(), result.orbs());
-            plugin.top("clean.doneTop", result.total());
+            if (gc) System.gc();
+            plugin.getLogger().info(plugin.text(null, "console.clean.done", result.items() + result.projectiles(), result.creatures(), result.orbs()));
+            plugin.top("clean.doneTop", result.items() + result.projectiles(), result.creatures(), result.orbs());
             return;
         }
         if (left <= 5 || left % 10 == 0) announce();
     }
 
-    private void announce() { plugin.top("clean.top", plugin.duration(null, left)); }
+    /** One line at the top for everyone, with what would go if it ran now. */
+    private void announce() {
+        var now = plugin.cleaner().count();
+        plugin.top("clean.top", plugin.duration(null, left), now.items() + now.projectiles(), now.creatures(), now.orbs());
+    }
 }

@@ -146,7 +146,7 @@ public final class Main extends PluginBase {
         access = new Access(getServer(), config.getString("access.mode", "open").equalsIgnoreCase("linked"), new HashSet<>(config.getStringList("access.allow")));
         cleaner = new Cleaner(getServer(), config.getBoolean("clean.items", true), config.getBoolean("clean.creatures", true),
                 config.getBoolean("clean.projectiles", true), config.getBoolean("clean.orbs", true));
-        cleanCountdown = new dev.toka.anchor.upkeep.CleanCountdown(this, config.getInt("clean.countdown-seconds", 10));
+        cleanCountdown = new dev.toka.anchor.upkeep.CleanCountdown(this, config.getInt("clean.countdown-seconds", 10), config.getBoolean("clean.gc", true));
         afk = new dev.toka.anchor.upkeep.Afk(System::currentTimeMillis, config.getInt("afk.seconds", 300));
         getServer().getPluginManager().registerEvents(afk, this);
         afk.touchAll(getServer().getOnlinePlayers().values());
@@ -220,7 +220,7 @@ public final class Main extends PluginBase {
         if (minutes <= 0) return;
         int ticks = (int) Math.min(Integer.MAX_VALUE, minutes * 1200L);
         cleanTask = getServer().getScheduler().scheduleDelayedRepeatingTask(this, () -> {
-            try { cleanCountdown.start(cleanCountdown.minimum()); }
+            try { cleanCountdown.startScheduled(); }
             catch (RuntimeException failure) { getLogger().warning(text(null, "log.cleanFailed", failure.getClass().getSimpleName())); }
         }, ticks, ticks);
     }
@@ -298,7 +298,12 @@ public final class Main extends PluginBase {
     }
 
     /** A line at the top of every player's screen (tokaDisplay), in their language; without tokaDisplay it goes to the action bar. */
-    public void top(String key, Object... args) {
+    public void top(String key, Object... args) { top(false, key, args); }
+
+    /** Same, to the administrators (tokaanchor.admin) only. */
+    public void topAdmins(String key, Object... args) { top(true, key, args); }
+
+    private void top(boolean adminsOnly, String key, Object... args) {
         java.lang.reflect.Method flash = null;
         var display = getServer().getPluginManager().getPlugin("tokaDisplay");
         if (display != null && display.isEnabled()) {
@@ -306,6 +311,7 @@ public final class Main extends PluginBase {
             catch (ReflectiveOperationException | LinkageError older) { flash = null; }
         }
         for (Player player : getServer().getOnlinePlayers().values()) {
+            if (adminsOnly && !player.hasPermission("tokaanchor.admin")) continue;
             String line = text(player, key, args);
             try { if (flash != null) { flash.invoke(null, player, line, 2, -1f, null); continue; } }
             catch (ReflectiveOperationException | LinkageError unavailable) { /* action bar below */ }

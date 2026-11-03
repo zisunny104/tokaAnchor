@@ -64,13 +64,12 @@ run:
 kill:
   done: "§a[Server] ${0} was killed"
 clean:
-  started: "§b[Clean] Loose items and unnamed creatures are cleaned in ${0}; /clean cancel stops it."
-  cancelled: "§a[Clean] The clean-up was cancelled."
-  top: "§eClean-up in ${0}"
-  doneTop: "§aCleaned ${0}"
+  cancelled: "§aClean-up cancelled"
+  # One line at the top, shown to every player. ${0}=time left ${1}=items and projectiles ${2}=creatures ${3}=orbs
+  top: "§eClean-up in ${0}: items ${1}, creatures ${2}, orbs ${3}"
+  doneTop: "§aCleaned items ${0}, creatures ${1}, orbs ${2}"
   none: "§e[Clean] No clean-up is counting."
   already: "§e[Clean] A clean-up is already counting."
-  done: "§b[Clean] Removed ${0} dropped items and projectiles, ${1} creatures, ${2} experience orbs."
 reload:
   done: "§a[Anchor] Settings and language reloaded."
 access:

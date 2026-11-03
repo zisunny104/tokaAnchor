@@ -45,15 +45,20 @@ public final class Cleaner {
         this.orbs = orbs;
     }
 
-    public Result clean() {
+    /** What clean() would remove right now, without removing it. */
+    public Result count() { return sweep(false); }
+
+    public Result clean() { return sweep(true); }
+
+    private Result sweep(boolean remove) {
         int item = 0, creature = 0, projectile = 0, orb = 0;
         for (Level level : server.getLevels().values()) {
             for (Entity entity : level.getEntities()) {
                 if (entity.closed || entity instanceof Player) continue;
-                if (items && entity instanceof EntityItem) { entity.close(); item++; }
-                else if (orbs && entity instanceof EntityXPOrb) { entity.close(); orb++; }
-                else if (projectiles && entity instanceof EntityProjectile) { entity.close(); projectile++; }
-                else if (creatures && entity instanceof EntityCreature && !entity.hasCustomName()) { entity.close(); creature++; }
+                if (items && entity instanceof EntityItem) { if (remove) entity.close(); item++; }
+                else if (orbs && entity instanceof EntityXPOrb) { if (remove) entity.close(); orb++; }
+                else if (projectiles && entity instanceof EntityProjectile) { if (remove) entity.close(); projectile++; }
+                else if (creatures && entity instanceof EntityCreature && !entity.hasCustomName()) { if (remove) entity.close(); creature++; }
             }
         }
         return new Result(item, creature, projectile, orb);

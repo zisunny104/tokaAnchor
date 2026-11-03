@@ -34,6 +34,8 @@ clean:
   countdown-seconds: 10
   # 每隔幾分鐘自動清理；0 為不自動，只能用 /anchor clean。
   interval-minutes: 0
+  # 清理完成後是否順便執行一次記憶體回收（GC）。
+  gc: true
   items: true
   creatures: true
   projectiles: true
