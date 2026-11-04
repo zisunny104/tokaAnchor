@@ -20,6 +20,9 @@ public final class CleanCountdown {
         this.minimum = Math.max(1, minimumSeconds);
     }
 
+    /** The id of the pinned line at the top, so every change replaces the one before. */
+    private static final String PIN = "tokaAnchor.clean";
+
     public boolean running() { return left >= 0; }
 
     public int minimum() { return minimum; }
@@ -45,12 +48,13 @@ public final class CleanCountdown {
         if (!running()) return false;
         stop();
         plugin.getLogger().info(plugin.text(null, "console.clean.cancelled"));
-        plugin.topAdmins("clean.cancelled");
+        plugin.unpinTop(PIN);
+        plugin.pinTop(true, PIN, 4, "clean.cancelled");
         return true;
     }
 
     /** For onDisable: forget the countdown without saying anything */
-    public void shutdown() { stop(); }
+    public void shutdown() { stop(); plugin.unpinTop(PIN); }
 
     private void stop() {
         left = -1;
@@ -66,15 +70,14 @@ public final class CleanCountdown {
             var result = plugin.cleaner().clean();
             if (gc) System.gc();
             plugin.getLogger().info(plugin.text(null, "console.clean.done", result.items() + result.projectiles(), result.creatures(), result.orbs()));
-            plugin.top("clean.doneTop", result.items() + result.projectiles(), result.creatures(), result.orbs());
+            plugin.pinTop(false, PIN, 8, "clean.doneTop", result.items() + result.projectiles(), result.creatures(), result.orbs());
             return;
         }
-        if (left <= 5 || left % 10 == 0) announce();
+        announce();
     }
 
     /** One line at the top for everyone, with what would go if it ran now. */
     private void announce() {
-        var now = plugin.cleaner().count();
-        plugin.top("clean.top", plugin.duration(null, left), now.items() + now.projectiles(), now.creatures(), now.orbs());
+        plugin.pinTop(false, PIN, 0, "clean.top", plugin.duration(null, left));
     }
 }

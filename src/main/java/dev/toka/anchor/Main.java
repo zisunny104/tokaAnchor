@@ -319,6 +319,36 @@ public final class Main extends PluginBase {
         }
     }
 
+    /**
+     * A pinned line at the top (tokaDisplay), the kind that stays and is changed in place under the same id, like the land hint.
+     * {@code seconds} 0 keeps it until {@link #unpinTop}; without tokaDisplay it is sent to the action bar.
+     */
+    public void pinTop(boolean adminsOnly, String id, int seconds, String key, Object... args) {
+        java.lang.reflect.Method pin = null;
+        var display = getServer().getPluginManager().getPlugin("tokaDisplay");
+        if (display != null && display.isEnabled()) {
+            try { pin = Class.forName("dev.toka.display.Main", true, display.getClass().getClassLoader()).getMethod("pin", Player.class, String.class, String.class, int.class, int.class, float.class, String.class); }
+            catch (ReflectiveOperationException | LinkageError older) { pin = null; }
+        }
+        for (Player player : getServer().getOnlinePlayers().values()) {
+            if (adminsOnly && !player.hasPermission("tokaanchor.admin")) continue;
+            String line = text(player, key, args);
+            try { if (pin != null) { pin.invoke(null, player, id, line, seconds, 30, -1f, ""); continue; } }
+            catch (ReflectiveOperationException | LinkageError unavailable) { /* action bar below */ }
+            player.sendActionBar(line);
+        }
+    }
+
+    /** Takes a pinned line off every screen. */
+    public void unpinTop(String id) {
+        var display = getServer().getPluginManager().getPlugin("tokaDisplay");
+        if (display == null || !display.isEnabled()) return;
+        try {
+            var unpin = Class.forName("dev.toka.display.Main", true, display.getClass().getClassLoader()).getMethod("unpin", Player.class, String.class);
+            for (Player player : getServer().getOnlinePlayers().values()) unpin.invoke(null, player, id);
+        } catch (ReflectiveOperationException | LinkageError older) { /* nothing was pinned */ }
+    }
+
     /** Text in the sender's language; a null sender (a login that has not finished) gets the configured one. */
     public String text(CommandSender sender, String key, Object... args) {
         String tag = sender instanceof Player player && player.getLocale() != null ? player.getLocale().toLanguageTag() : getConfig().getString("language", "zh-TW");
