@@ -81,6 +81,7 @@ public final class Main extends PluginBase {
             runQueue = new dev.toka.anchor.listener.RunQueueListener(this, pendingRuns);
             getServer().getPluginManager().registerEvents(runQueue, this);
             bans = new BanService(new BanBook(store), sightings, autoBan(config), (key, detail) -> getLogger().warning(text(null, "log." + key, detail)));
+            getServer().getPluginManager().registerEvents(new dev.toka.anchor.listener.ClearListener(), this);
             getServer().getPluginManager().registerEvents(new GateListener(this, bans), this);
             modes = new dev.toka.anchor.upkeep.ModeKeeper(new java.io.File(getDataFolder(), "modes.yml"));
             getServer().getPluginManager().registerEvents(modes, this);
