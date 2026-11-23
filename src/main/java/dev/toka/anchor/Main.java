@@ -288,6 +288,18 @@ public final class Main extends PluginBase {
     }
 
     /** A span as words in the sender's language, two units at most, for example "13 小時 44 分鐘". */
+    /** A record line: in the console, and in the Discord command channel (the record channel) when tokaDiscordLink is there. */
+    public void record(String line) {
+        getLogger().info(line);
+        var link = getServer().getPluginManager().getPlugin("tokaDiscordLink");
+        if (link == null || !link.isEnabled()) return;
+        try {
+            Class.forName("dev.toka.discord.api.DiscordLink", true, link.getClass().getClassLoader())
+                    .getMethod("sendMessage", String.class, String.class)
+                    .invoke(null, cn.nukkit.utils.TextFormat.clean("[tokaAnchor] " + line), "cmd");
+        } catch (ReflectiveOperationException | LinkageError unavailable) { /* Discord is optional */ }
+    }
+
     public String duration(CommandSender sender, long seconds) {
         return Readable.span(seconds, (unit, count) -> text(sender, "time." + unit, Readable.number(count)));
     }

@@ -1,8 +1,9 @@
 name: tokaAnchor
 main: dev.toka.anchor.Main
-version: 0.2.18
+version: 0.2.19
 api: ["1.0.4"]
 load: POSTWORLD
+softdepend: [tokaDiscordLink]
 permissions:
   tokaanchor.use:
     description: 查看說明

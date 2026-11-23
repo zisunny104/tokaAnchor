@@ -31,7 +31,7 @@ public final class CleanCountdown {
     public boolean start(int seconds) {
         if (running()) return false;
         left = Math.max(minimum, seconds);
-        plugin.getLogger().info(plugin.text(null, "console.clean.started", plugin.duration(null, left)));
+        plugin.record(plugin.text(null, "console.clean.started", plugin.duration(null, left)));
         announce();
         task = plugin.getServer().getScheduler().scheduleRepeatingTask(plugin, this::tick, 20);
         return true;
@@ -47,7 +47,7 @@ public final class CleanCountdown {
     public boolean cancel() {
         if (!running()) return false;
         stop();
-        plugin.getLogger().info(plugin.text(null, "console.clean.cancelled"));
+        plugin.record(plugin.text(null, "console.clean.cancelled"));
         plugin.unpinTop(PIN);
         plugin.pinTop(true, PIN, 4, "clean.cancelled");
         return true;
@@ -69,7 +69,7 @@ public final class CleanCountdown {
             stop();
             var result = plugin.cleaner().clean();
             if (gc) System.gc();
-            plugin.getLogger().info(plugin.text(null, "console.clean.done", result.items() + result.projectiles(), result.creatures(), result.orbs()));
+            plugin.record(plugin.text(null, "console.clean.done", result.items() + result.projectiles(), result.creatures(), result.orbs()));
             plugin.pinTop(false, PIN, 8, "clean.doneTop", result.items() + result.projectiles(), result.creatures(), result.orbs());
             return;
         }
